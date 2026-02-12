@@ -38,9 +38,11 @@ let jellyfish=[];
 let keys={};
 let gameRunning=true;
 let spawnRate=difficulty==='hard'?40:difficulty==='medium'?50:60;
-if(difficulty==='easy')timeLeft=90;
-if(difficulty==='medium')timeLeft=60;
-if(difficulty==='hard')timeLeft=45;
+if(difficulty==='easy')timeLeft=90,speed=6;
+if(difficulty==='medium')timeLeft=60,speed=7;
+if(difficulty==='hard')timeLeft=45,speed=8;
+//auto running
+
 
 window.addEventListener('keydown',e=>keys[e.key]=true);
 window.addEventListener('keyup',e=>keys[e.key]=false);
