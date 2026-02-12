@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Blue Whale</title>
+<style>
+body{margin:0;overflow:hidden;background:#1e3a8a;font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:center;color:white;height:100vh;}
+#game{background:linear-gradient(180deg,#0ea5e9 0%,#1e40af 100%);box-shadow:0 0 30px rgba(0,0,0,0.8);display:block;}
+#ui{position:fixed;top:20px;left:20px;font-size:20px;font-weight:bold;color:#fff;text-shadow:2px 2px 4px #000;}
+#gameOver{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(0,0,0,0.9);text-align:center;}
+button{padding:12px 30px;border:none;border-radius:8px;font-size:18px;background:#22c55e;color:white;font-weight:bold;cursor:pointer;margin-top:20px;}
+.back{position:fixed;top:20px;right:20px;padding:8px 16px;font-size:14px;}
+</style>
+</head>
+<body>
+<button class="back" onclick="location.href='index.html'">← Back</button>
+<div id="ui">Score: 0 | Time: 60s</div>
+<div id="gameOver">
+ <h1>GAME OVER</h1>
+ <div id="finalScore"></div>
+ <button onclick="location.reload()">Restart</button>
+ <button onclick="location.href='index.html'">Back to Menu</button>
+</div>
+<canvas id="game"></canvas>
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+canvas.width=800;
+canvas.height=600;
+let score=0;
+let timeLeft=60;
+let difficulty=localStorage.getItem('gameDifficulty')||'easy';
+let whale={x:400,y:300,w:80,h:40,vx:0,vy:0,speed:6,angle:0};
+let people=[];
+let sharks=[];
+let jellyfish=[];
+let keys={};
+let gameRunning=true;
+let spawnRate=difficulty==='hard'?40:difficulty==='medium'?50:60;
+if(difficulty==='easy')timeLeft=90;
+if(difficulty==='medium')timeLeft=60;
+if(difficulty==='hard')timeLeft=45;
+
+window.addEventListener('keydown',e=>keys[e.key]=true);
+window.addEventListener('keyup',e=>keys[e.key]=false);
+
+function spawnPerson(){
+ let side=Math.floor(Math.random()*4);
+ let x,y;
+ if(side===0){x=Math.random()*canvas.width;y=-20;}
+ if(side===1){x=canvas.width+20;y=Math.random()*canvas.height;}
+ if(side===2){x=Math.random()*canvas.width;y=canvas.height+20;}
+ if(side===3){x=-20;y=Math.random()*canvas.height;}
+ let speedMult=difficulty==='hard'?1.5:difficulty==='medium'?1.2:1;
+ people.push({x,y,w:20,h:30,vx:(Math.random()-0.5)*2*speedMult,vy:(Math.random()-0.5)*2*speedMult});
+}
+
+function spawnShark(){
+ if(difficulty==='easy')return;
+ let side=Math.floor(Math.random()*4);
+ let x,y;
+ if(side===0){x=Math.random()*canvas.width;y=-30;}
+ if(side===1){x=canvas.width+30;y=Math.random()*canvas.height;}
+ if(side===2){x=Math.random()*canvas.width;y=canvas.height+30;}
+ if(side===3){x=-30;y=Math.random()*canvas.height;}
+ sharks.push({x,y,w:40,h:20,speed:3});
+}
+
+function spawnJellyfish(){
+ if(difficulty!=='hard')return;
+ jellyfish.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:18,pulse:0});
+}
+
+function update(){
+ if(!gameRunning)return;
+ 
+ if(keys['ArrowLeft']||keys['a']||keys['A'])whale.vx=-whale.speed;
+ else if(keys['ArrowRight']||keys['d']||keys['D'])whale.vx=whale.speed;
+ else whale.vx*=0.9;
+ 
+ if(keys['ArrowUp']||keys['w']||keys['W'])whale.vy=-whale.speed;
+ else if(keys['ArrowDown']||keys['s']||keys['S'])whale.vy=whale.speed;
+ else whale.vy*=0.9;
+ 
+ whale.x+=whale.vx;
+ whale.y+=whale.vy;
+ whale.angle=Math.atan2(whale.vy,whale.vx);
+ 
+ whale.x=Math.max(whale.w/2,Math.min(canvas.width-whale.w/2,whale.x));
+ whale.y=Math.max(whale.h/2,Math.min(canvas.height-whale.h/2,whale.y));
+ 
+ if(Math.random()<0.02)spawnPerson();
+ if(Math.random()<0.01)spawnShark();
+ if(Math.random()<0.005)spawnJellyfish();
+ 
+ people.forEach((p,i)=>{
+  p.x+=p.vx;
+  p.y+=p.vy;
+  
+  if(Math.hypot(whale.x-p.x,whale.y-p.y)<whale.w/2+p.w/2){
+   people.splice(i,1);
+   score+=10;
+  }
+  
+  if(p.x<-50||p.x>canvas.width+50||p.y<-50||p.y>canvas.height+50){
+   people.splice(i,1);
+   if(difficulty==='hard')score=Math.max(0,score-5);
+  }
+ });
+ 
+ sharks.forEach((s,i)=>{
+  let dx=whale.x-s.x;
+  let dy=whale.y-s.y;
+  let dist=Math.hypot(dx,dy);
+  s.x+=dx/dist*s.speed;
+  s.y+=dy/dist*s.speed;
+  
+  if(Math.hypot(whale.x-s.x,whale.y-s.y)<whale.w/2+s.w/2){
+   sharks.splice(i,1);
+   score=Math.max(0,score-20);
+   timeLeft-=3;
+  }
+  
+  if(s.x<-100||s.x>canvas.width+100||s.y<-100||s.y>canvas.height+100){
+   sharks.splice(i,1);
+  }
+ });
+ 
+ jellyfish.forEach((j,i)=>{
+  j.pulse+=0.1;
+  if(Math.hypot(whale.x-j.x,whale.y-j.y)<whale.w/2+j.r){
+   jellyfish.splice(i,1);
+   whale.speed=Math.max(2,whale.speed-1);
+   setTimeout(()=>whale.speed=6,3000);
+  }
+ });
+}
+
+function draw(){
+ let gradient=ctx.createLinearGradient(0,0,0,canvas.height);
+ gradient.addColorStop(0,'#0ea5e9');
+ gradient.addColorStop(1,'#1e40af');
+ ctx.fillStyle=gradient;
+ ctx.fillRect(0,0,canvas.width,canvas.height);
+ 
+ for(let i=0;i<20;i++){
+  ctx.fillStyle='rgba(255,255,255,0.3)';
+  ctx.beginPath();
+  ctx.arc(Math.random()*canvas.width,Math.random()*canvas.height,2,0,Math.PI*2);
+  ctx.fill();
+ }
+ 
+ people.forEach(p=>{
+  ctx.fillStyle='#fbbf24';
+  ctx.beginPath();
+  ctx.arc(p.x,p.y-10,8,0,Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle='#f97316';
+  ctx.fillRect(p.x-6,p.y,12,15);
+  ctx.fillStyle='#fbbf24';
+  ctx.fillRect(p.x-8,p.y+5,5,10);
+  ctx.fillRect(p.x+3,p.y+5,5,10);
+  ctx.fillStyle='#3b82f6';
+  ctx.fillRect(p.x-6,p.y+15,12,8);
+ });
+ 
+ sharks.forEach(s=>{
+  ctx.fillStyle='#64748b';
+  ctx.beginPath();
+  ctx.ellipse(s.x,s.y,s.w/2,s.h/2,0,0,Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle='#475569';
+  ctx.beginPath();
+  ctx.moveTo(s.x-s.w/2,s.y-10);
+  ctx.lineTo(s.x-s.w/2-15,s.y-20);
+  ctx.lineTo(s.x-s.w/2,s.y);
+  ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.beginPath();
+  ctx.arc(s.x+s.w/4,s.y-5,5,0,Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle='#000';
+  ctx.beginPath();
+  ctx.arc(s.x+s.w/4,s.y-5,3,0,Math.PI*2);
+  ctx.fill();
+ });
+ 
+ jellyfish.forEach(j=>{
+  ctx.fillStyle='rgba(236,72,153,'+(0.6+Math.sin(j.pulse)*0.2)+')';
+  ctx.beginPath();
+  ctx.arc(j.x,j.y,j.r,0,Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle='#ec4899';
+  ctx.lineWidth=2;
+  for(let i=0;i<6;i++){
+   ctx.beginPath();
+   ctx.moveTo(j.x-j.r+i*j.r/3,j.y+j.r);
+   ctx.lineTo(j.x-j.r+i*j.r/3,j.y+j.r+15+Math.sin(j.pulse+i)*5);
+   ctx.stroke();
+  }
+ });
+ 
+ ctx.save();
+ ctx.translate(whale.x,whale.y);
+ ctx.rotate(whale.angle);
+ ctx.fillStyle='#3b82f6';
+ ctx.beginPath();
+ ctx.ellipse(0,0,whale.w/2,whale.h/2,0,0,Math.PI*2);
+ ctx.fill();
+ ctx.fillStyle='#1e40af';
+ ctx.beginPath();
+ ctx.ellipse(-10,-5,whale.w/2-10,whale.h/2-5,0,0,Math.PI*2);
+ ctx.fill();
+ ctx.fillStyle='#fff';
+ ctx.beginPath();
+ ctx.arc(whale.w/4,0,8,0,Math.PI*2);
+ ctx.fill();
+ ctx.fillStyle='#000';
+ ctx.beginPath();
+ ctx.arc(whale.w/4+2,0,4,0,Math.PI*2);
+ ctx.fill();
+ ctx.strokeStyle='#1e40af';
+ ctx.lineWidth=3;
+ ctx.beginPath();
+ ctx.arc(whale.w/3,whale.h/4,15,0.2,Math.PI-0.2);
+ ctx.stroke();
+ ctx.fillStyle='#60a5fa';
+ ctx.beginPath();
+ ctx.moveTo(-whale.w/2,0);
+ ctx.lineTo(-whale.w/2-20,-15);
+ ctx.lineTo(-whale.w/2-20,15);
+ ctx.fill();
+ ctx.restore();
+ 
+ document.getElementById("ui").innerText=`Score: ${score} | Time: ${timeLeft}s | Speed: ${whale.speed.toFixed(1)}`;
+}
+
+let timer=setInterval(()=>{
+ if(gameRunning){
+  timeLeft--;
+  if(timeLeft<=0){
+   gameRunning=false;
+   clearInterval(timer);
+   document.getElementById("finalScore").innerText=`Final Score: ${score}`;
+   document.getElementById("gameOver").style.display='flex';
+  }
+ }
+},1000);
+
+function gameLoop(){
+ update();
+ draw();
+ requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+<script>
+// Touch Swipe Controls
+let touchStartX=0,touchStartY=0;
+canvas.addEventListener('touchstart',e=>{
+ touchStartX=e.touches[0].clientX;
+ touchStartY=e.touches[0].clientY;
+});
+canvas.addEventListener('touchend',e=>{
+ let touchEndX=e.changedTouches[0].clientX;
+ let touchEndY=e.changedTouches[0].clientY;
+ let diffX=touchEndX-touchStartX;
+ let diffY=touchEndY-touchStartY;
+ if(Math.abs(diffX)>Math.abs(diffY)){
+  if(diffX>30){keys['ArrowRight']=true;keys['d']=true;}
+  else if(diffX<-30){keys['ArrowLeft']=true;keys['a']=true;}
+ }else{
+  if(diffY>30){keys['ArrowDown']=true;keys['s']=true;}
+  else if(diffY<-30){keys['ArrowUp']=true;keys['w']=true;}
+ }
+ setTimeout(()=>{keys['ArrowRight']=false;keys['ArrowLeft']=false;keys['ArrowUp']=false;keys['ArrowDown']=false;keys['a']=false;keys['d']=false;keys['w']=false;keys['s']=false;},100);
+});
+</script>
+</body>
+</html>

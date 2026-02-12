@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Bloody Mary's Haunted House</title>
+<style>
+body{margin:0;overflow:hidden;background:#000;font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:center;color:white;height:100vh;}
+#game{background:#1a0a2e;box-shadow:0 0 50px rgba(255,0,0,0.5);display:block;cursor:crosshair;}
+#ui{position:fixed;top:20px;left:20px;font-size:20px;font-weight:bold;color:#fff;text-shadow:2px 2px 8px #f00;}
+#instructions{position:fixed;top:60px;left:20px;font-size:14px;color:#fff;text-shadow:1px 1px 4px #000;max-width:300px;background:rgba(0,0,0,0.7);padding:10px;border-radius:8px;}
+#gameOver{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(0,0,0,0.95);text-align:center;}
+#gameOver h1{color:#ff0000;font-size:48px;text-shadow:0 0 20px #f00;}
+button{padding:12px 30px;border:none;border-radius:8px;font-size:18px;background:#dc2626;color:white;font-weight:bold;cursor:pointer;margin:5px;}
+.back{position:fixed;top:20px;right:20px;padding:8px 16px;font-size:14px;}
+#jumpscare{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#000;z-index:100;}
+</style>
+</head>
+<body>
+<button class="back" onclick="location.href='index.html'">← Back</button>
+<div id="ui">Score: 0 | Lives: 3 | 👻</div>
+<div id="instructions">
+ 🎮 Controls: Arrow Keys or A/D<br>
+ 🎯 Goal: Dodge ghosts & collect candles<br>
+ 👻 3 Ghost Types: Purple, Red, Green<br>
+ ⚠️ Bloody Mary appears every 500 points!<br>
+ 🕯️ Candles = +50 points
+</div>
+<div id="jumpscare"></div>
+<div id="gameOver">
+ <h1>BLOODY MARY GOT YOU!</h1>
+ <div id="finalScore"></div>
+ <button onclick="location.reload()">Restart</button>
+ <button onclick="location.href='index.html'">Back to Menu</button>
+</div>
+<canvas id="game"></canvas>
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+canvas.width=800;
+canvas.height=600;
+let score=0,lives=3;
+let difficulty=localStorage.getItem('gameDifficulty')||'easy';
+let player={x:400,y:500,w:40,h:60,vx:0,speed:5,scale:1};
+let ghosts=[];
+let candles=[];
+let bloodyMary={x:400,y:-100,w:80,h:120,active:false,timer:0};
+let keys={};
+let gameRunning=true;
+let perspective=300;
+let cameraZ=0;
+
+window.addEventListener('keydown',e=>keys[e.key]=true);
+window.addEventListener('keyup',e=>keys[e.key]=false);
+
+function spawnGhost(){
+ let types=['funny','scary','silly'];
+ let type=types[Math.floor(Math.random()*types.length)];
+ ghosts.push({
+  x:Math.random()*700+50,
+  y:-50,
+  z:Math.random()*500+200,
+  w:50,h:70,
+  speed:1+Math.random()*2,
+  type:type,
+  wobble:Math.random()*Math.PI*2
+ });
+}
+
+function spawnCandle(){
+ candles.push({
+  x:Math.random()*700+50,
+  y:0,
+  z:Math.random()*500+200,
+  w:20,h:40,
+  collected:false
+ });
+}
+
+function project3D(x,y,z){
+ let scale=perspective/(perspective+z-cameraZ);
+ return{
+  x:canvas.width/2+(x-canvas.width/2)*scale,
+  y:canvas.height*0.7+(y-canvas.height*0.7)*scale,
+  scale:scale
+ };
+}
+
+function drawGhost(g){
+ let pos=project3D(g.x,g.y,g.z);
+ let size=g.w*pos.scale;
+ 
+ ctx.save();
+ ctx.translate(pos.x,pos.y);
+ 
+ if(g.type==='funny'){
+  ctx.fillStyle='#a855f7';
+  ctx.beginPath();
+  ctx.arc(0,-size/2,size/2,Math.PI,0);
+  ctx.lineTo(size/2,size/2);
+  for(let i=0;i<5;i++){
+   ctx.lineTo(size/2-i*size/5,size/2-(i%2)*size/4);
+  }
+  ctx.lineTo(-size/2,size/2);
+  ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.beginPath();
+  ctx.arc(-size/4,-size/3,size/8,0,Math.PI*2);
+  ctx.arc(size/4,-size/3,size/8,0,Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle='#000';
+  ctx.beginPath();
+  ctx.arc(-size/4,-size/3,size/12,0,Math.PI*2);
+  ctx.arc(size/4,-size/3,size/12,0,Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle='#000';
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.arc(0,0,size/4,0.2,Math.PI-0.2);
+  ctx.stroke();
+ }else if(g.type==='scary'){
+  ctx.fillStyle='#ef4444';
+  ctx.beginPath();
+  ctx.arc(0,-size/2,size/2,Math.PI,0);
+  ctx.lineTo(size/2,size/2);
+  for(let i=0;i<5;i++){
+   ctx.lineTo(size/2-i*size/5,size/2-(i%2)*size/4);
+  }
+  ctx.lineTo(-size/2,size/2);
+  ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.fillRect(-size/3,-size/2,size/6,size/3);
+  ctx.fillRect(size/6,-size/2,size/6,size/3);
+  ctx.fillStyle='#000';
+  ctx.fillRect(-size/3+size/12,-size/2+size/12,size/12,size/6);
+  ctx.fillRect(size/6+size/12,-size/2+size/12,size/12,size/6);
+  ctx.fillStyle='#000';
+  ctx.fillRect(-size/6,-size/8,size/3,size/12);
+ }else{
+  ctx.fillStyle='#22c55e';
+  ctx.beginPath();
+  ctx.arc(0,-size/2,size/2,Math.PI,0);
+  ctx.lineTo(size/2,size/2);
+  for(let i=0;i<5;i++){
+   ctx.lineTo(size/2-i*size/5,size/2-(i%2)*size/4);
+  }
+  ctx.lineTo(-size/2,size/2);
+  ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.font=`${size/2}px Arial`;
+  ctx.textAlign='center';
+  ctx.fillText('😜',-size/8,-size/3);
+ }
+ ctx.restore();
+}
+
+function drawPlayer(){
+ ctx.fillStyle='#fbbf24';
+ ctx.beginPath();
+ ctx.arc(player.x,player.y-30,20,0,Math.PI*2);
+ ctx.fill();
+ ctx.fillStyle='#3b82f6';
+ ctx.fillRect(player.x-15,player.y-10,30,40);
+ ctx.fillStyle='#1e40af';
+ ctx.fillRect(player.x-12,player.y-5,24,30);
+ ctx.fillStyle='#fbbf24';
+ ctx.fillRect(player.x-18,player.y,8,15);
+ ctx.fillRect(player.x+10,player.y,8,15);
+ ctx.fillStyle='#1e40af';
+ ctx.fillRect(player.x-10,player.y+30,8,20);
+ ctx.fillRect(player.x+2,player.y+30,8,20);
+ ctx.fillStyle='#fff';
+ ctx.beginPath();
+ ctx.arc(player.x-8,player.y-35,4,0,Math.PI*2);
+ ctx.arc(player.x+8,player.y-35,4,0,Math.PI*2);
+ ctx.fill();
+ ctx.fillStyle='#000';
+ ctx.beginPath();
+ ctx.arc(player.x-8,player.y-35,2,0,Math.PI*2);
+ ctx.arc(player.x+8,player.y-35,2,0,Math.PI*2);
+ ctx.fill();
+}
+
+function drawBloodyMary(){
+ if(!bloodyMary.active)return;
+ ctx.save();
+ ctx.globalAlpha=0.8+Math.sin(Date.now()/100)*0.2;
+ ctx.fillStyle='#dc2626';
+ ctx.beginPath();
+ ctx.arc(bloodyMary.x,bloodyMary.y,40,Math.PI,0);
+ ctx.lineTo(bloodyMary.x+40,bloodyMary.y+80);
+ for(let i=0;i<7;i++){
+  ctx.lineTo(bloodyMary.x+40-i*80/7,bloodyMary.y+80-(i%2)*20);
+ }
+ ctx.lineTo(bloodyMary.x-40,bloodyMary.y+80);
+ ctx.fill();
+ ctx.fillStyle='#fff';
+ ctx.beginPath();
+ ctx.arc(bloodyMary.x-15,bloodyMary.y-10,10,0,Math.PI*2);
+ ctx.arc(bloodyMary.x+15,bloodyMary.y-10,10,0,Math.PI*2);
+ ctx.fill();
+ ctx.fillStyle='#f00';
+ ctx.beginPath();
+ ctx.arc(bloodyMary.x-15,bloodyMary.y-10,6,0,Math.PI*2);
+ ctx.arc(bloodyMary.x+15,bloodyMary.y-10,6,0,Math.PI*2);
+ ctx.fill();
+ ctx.fillStyle='#000';
+ ctx.font='30px Arial';
+ ctx.textAlign='center';
+ ctx.fillText('👄',bloodyMary.x,bloodyMary.y+20);
+ ctx.restore();
+}
+
+function update(){
+ if(!gameRunning)return;
+ 
+ if(keys['ArrowLeft']||keys['a']||keys['A'])player.x-=player.speed;
+ if(keys['ArrowRight']||keys['d']||keys['D'])player.x+=player.speed;
+ 
+ player.x=Math.max(30,Math.min(canvas.width-30,player.x));
+ 
+ cameraZ+=2+score/5000;
+ 
+ if(Math.random()<0.02)spawnGhost();
+ if(Math.random()<0.01)spawnCandle();
+ 
+ ghosts.forEach((g,i)=>{
+  g.z-=g.speed+cameraZ*0.01+score/10000;
+  g.wobble+=0.1;
+  g.x+=Math.sin(g.wobble)*2;
+  
+  if(g.z<50){
+   let dist=Math.hypot(player.x-g.x,player.y-g.y);
+   if(dist<50){
+    lives--;
+    ghosts.splice(i,1);
+    if(lives<=0){
+     gameRunning=false;
+     document.getElementById("finalScore").innerText=`Final Score: ${score}`;
+     document.getElementById("gameOver").style.display='flex';
+    }
+   }
+  }
+  if(g.z<-100)ghosts.splice(i,1);
+ });
+ 
+ candles.forEach((c,i)=>{
+  c.z-=2+cameraZ*0.01;
+  if(c.z<50&&!c.collected){
+   let dist=Math.hypot(player.x-c.x,player.y-c.y);
+   if(dist<40){
+    c.collected=true;
+    score+=50;
+    candles.splice(i,1);
+   }
+  }
+  if(c.z<-100)candles.splice(i,1);
+ });
+ 
+ if(score>0&&score%500===0&&!bloodyMary.active){
+  bloodyMary.active=true;
+  bloodyMary.y=-100;
+  bloodyMary.timer=200+score/10;
+  bloodyMary.speed=3+score/1000;
+ }
+ 
+ if(bloodyMary.active){
+  bloodyMary.timer--;
+  bloodyMary.y+=bloodyMary.speed||3;
+  bloodyMary.x+=(player.x-bloodyMary.x)*0.05;
+  if(Math.hypot(player.x-bloodyMary.x,player.y-bloodyMary.y)<60){
+   lives=0;
+   gameRunning=false;
+   document.getElementById("finalScore").innerText=`Bloody Mary Got You! Score: ${score}`;
+   document.getElementById("gameOver").style.display='flex';
+  }
+  if(bloodyMary.timer<=0||bloodyMary.y>canvas.height){
+   bloodyMary.active=false;
+  }
+ }
+ 
+ score++;
+}
+
+function draw(){
+ let gradient=ctx.createLinearGradient(0,0,0,canvas.height);
+ gradient.addColorStop(0,'#1a0a2e');
+ gradient.addColorStop(1,'#0f0520');
+ ctx.fillStyle=gradient;
+ ctx.fillRect(0,0,canvas.width,canvas.height);
+ 
+ ctx.fillStyle='rgba(139,92,246,0.1)';
+ for(let i=0;i<50;i++){
+  ctx.fillRect(Math.random()*canvas.width,Math.random()*canvas.height,2,2);
+ }
+ 
+ ghosts.sort((a,b)=>b.z-a.z);
+ ghosts.forEach(g=>drawGhost(g));
+ 
+ candles.forEach(c=>{
+  let pos=project3D(c.x,c.y,c.z);
+  let size=c.w*pos.scale;
+  ctx.fillStyle='#fbbf24';
+  ctx.fillRect(pos.x-size/4,pos.y-size,size/2,size);
+  ctx.fillStyle='#f97316';
+  ctx.beginPath();
+  ctx.moveTo(pos.x,pos.y-size);
+  ctx.lineTo(pos.x-size/4,pos.y-size-size/2);
+  ctx.lineTo(pos.x+size/4,pos.y-size-size/2);
+  ctx.fill();
+ });
+ 
+ drawPlayer();
+ drawBloodyMary();
+ 
+ document.getElementById("ui").innerText=`Score: ${score} | Lives: ${lives} | 👻`;
+ 
+ if(score<100){
+  ctx.fillStyle='#fff';
+  ctx.font='20px Arial';
+  ctx.textAlign='center';
+  ctx.fillText('Move Left/Right to dodge ghosts!',canvas.width/2,canvas.height-50);
+  ctx.fillText('Collect golden candles for bonus points!',canvas.width/2,canvas.height-25);
+ }
+}
+
+function gameLoop(){
+ update();
+ draw();
+ requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+</body>
+</html>

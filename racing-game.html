@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Racing Game</title>
+<style>
+body{margin:0;overflow:hidden;background:#1a1a1a;font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:center;color:white;height:100vh;}
+#game{background:#2d2d2d;box-shadow:0 0 30px rgba(0,0,0,0.8);display:block;}
+#ui{position:fixed;top:20px;left:20px;font-size:20px;font-weight:bold;}
+#gameOver{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(0,0,0,0.9);text-align:center;}
+button{padding:12px 30px;border:none;border-radius:8px;font-size:18px;background:#22c55e;color:white;font-weight:bold;cursor:pointer;margin-top:20px;}
+.back{position:fixed;top:20px;right:20px;padding:8px 16px;font-size:14px;}
+</style>
+</head>
+<body>
+<button class="back" onclick="location.href='index.html'">← Back</button>
+<div id="ui">Speed: 0 | Distance: 0</div>
+<div id="gameOver">
+ <h1>GAME OVER</h1>
+ <div id="finalScore"></div>
+ <button onclick="location.reload()">Restart</button>
+ <button onclick="location.href='index.html'">Back to Menu</button>
+</div>
+<canvas id="game"></canvas>
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+canvas.width=600;
+canvas.height=800;
+let player={x:canvas.width/2-20,y:canvas.height-120,w:40,h:70,speed:0};
+let difficulty=localStorage.getItem('gameDifficulty')||'easy';
+let carSpawnRate=difficulty==='hard'?0.04:difficulty==='medium'?0.03:0.02;
+let cars=[];
+let roadY=0;
+let distance=0;
+let keys={};
+let gameRunning=true;
+
+window.addEventListener('keydown',e=>keys[e.key]=true);
+window.addEventListener('keyup',e=>keys[e.key]=false);
+
+function spawnCar(){
+ if(Math.random()<carSpawnRate+(distance/5000)){
+  let lane=Math.floor(Math.random()*3);
+  let speedBoost=difficulty==='hard'?3:difficulty==='medium'?1.5:0;
+  speedBoost+=distance/2000;
+  cars.push({x:150+lane*150,y:-100,w:40,h:70,speed:3+Math.random()*2+speedBoost});
+ }
+}
+
+function update(){
+ if(!gameRunning)return;
+ 
+ if(keys['ArrowLeft']&&player.x>100)player.x-=5;
+ if(keys['ArrowRight']&&player.x<canvas.width-140)player.x+=5;
+ if(keys['ArrowUp']&&player.speed<10)player.speed+=0.2;
+ if(keys['ArrowDown']&&player.speed>0)player.speed-=0.3;
+ 
+ if(!keys['ArrowUp']&&player.speed>0)player.speed-=0.1;
+ 
+ roadY+=player.speed;
+ if(roadY>40)roadY=0;
+ distance+=player.speed;
+ 
+ spawnCar();
+ 
+ cars.forEach((c,i)=>{
+  c.y+=c.speed+player.speed;
+  if(c.y>canvas.height)cars.splice(i,1);
+  
+  if(player.x<c.x+c.w&&player.x+player.w>c.x&&player.y<c.y+c.h&&player.y+player.h>c.y){
+   gameRunning=false;
+   document.getElementById("finalScore").innerText=`Distance: ${Math.floor(distance)}m`;
+   document.getElementById("gameOver").style.display='flex';
+  }
+ });
+}
+
+function draw(){
+ ctx.fillStyle='#2d7a2d';
+ ctx.fillRect(0,0,canvas.width,canvas.height);
+ 
+ ctx.fillStyle='#444';
+ ctx.fillRect(100,0,400,canvas.height);
+ 
+ ctx.strokeStyle='#fff';
+ ctx.lineWidth=4;
+ ctx.setLineDash([20,20]);
+ ctx.lineDashOffset=-roadY;
+ ctx.beginPath();
+ ctx.moveTo(250,0);
+ ctx.lineTo(250,canvas.height);
+ ctx.moveTo(350,0);
+ ctx.lineTo(350,canvas.height);
+ ctx.stroke();
+ ctx.setLineDash([]);
+ 
+ ctx.fillStyle='#3b82f6';
+ ctx.fillRect(player.x,player.y,player.w,player.h);
+ ctx.fillStyle='#1e40af';
+ ctx.fillRect(player.x+5,player.y+10,player.w-10,player.h-20);
+ ctx.fillStyle='#60a5fa';
+ ctx.fillRect(player.x+8,player.y+15,10,15);
+ ctx.fillRect(player.x+player.w-18,player.y+15,10,15);
+ ctx.fillStyle='#000';
+ ctx.fillRect(player.x+10,player.y+5,player.w-20,12);
+ 
+ cars.forEach(c=>{
+  ctx.fillStyle='#ef4444';
+  ctx.fillRect(c.x,c.y,c.w,c.h);
+  ctx.fillStyle='#7f1d1d';
+  ctx.fillRect(c.x+5,c.y+10,c.w-10,c.h-20);
+  ctx.fillStyle='#fca5a5';
+  ctx.fillRect(c.x+8,c.y+15,10,15);
+  ctx.fillRect(c.x+c.w-18,c.y+15,10,15);
+  ctx.fillStyle='#000';
+  ctx.fillRect(c.x+10,c.y+c.h-17,c.w-20,12);
+ });
+ 
+ document.getElementById("ui").innerText=`Speed: ${Math.floor(player.speed*10)} | Distance: ${Math.floor(distance)}m`;
+}
+
+function gameLoop(){
+ update();
+ draw();
+ requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+<script>
+// Racing Game Custom Mobile Controls
+if('ontouchstart' in window){
+ const style=document.createElement('style');
+ style.textContent=`.race-btn{position:fixed;width:70px;height:70px;background:rgba(255,255,255,0.3);border:3px solid rgba(255,255,255,0.6);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:32px;user-select:none;touch-action:none;}@media(max-width:768px){.race-btn{display:flex;}}`;
+ document.head.appendChild(style);
+ 
+ const btns={
+  left:createBtn('←','auto','auto','120px','20px'),
+  right:createBtn('→','auto','20px','120px','auto')
+ };
+ 
+ function createBtn(txt,t,r,b,l){
+  const btn=document.createElement('div');
+  btn.className='race-btn';
+  btn.textContent=txt;
+  btn.style.top=t;
+  btn.style.right=r;
+  btn.style.bottom=b;
+  btn.style.left=l;
+  document.body.appendChild(btn);
+  return btn;
+ }
+ 
+ function press(key){
+  keys[key]=true;
+ }
+ 
+ function release(key){
+  keys[key]=false;
+ }
+ 
+ btns.left.addEventListener('touchstart',e=>{e.preventDefault();press('ArrowLeft');});
+ btns.left.addEventListener('touchend',e=>{e.preventDefault();release('ArrowLeft');});
+ btns.right.addEventListener('touchstart',e=>{e.preventDefault();press('ArrowRight');});
+ btns.right.addEventListener('touchend',e=>{e.preventDefault();release('ArrowRight');});
+ 
+ // Auto-accelerate on mobile
+ keys['ArrowUp']=true;
+}
+</script>
+</body>
+</html>

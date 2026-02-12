@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Fun Games</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%2322c55e'/><stop offset='0.5' stop-color='%23fbbf24'/><stop offset='1' stop-color='%23ef4444'/></linearGradient></defs><rect fill='url(%23g)' width='100' height='100' rx='20'/><circle cx='35' cy='35' r='8' fill='white'/><circle cx='65' cy='35' r='8' fill='white'/><path d='M30 60 Q50 75 70 60' stroke='white' stroke-width='6' fill='none' stroke-linecap='round'/></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+ font-family:Arial,sans-serif;
+ background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+ min-height:100vh;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ padding:20px;
+}
+h1{
+ color:white;
+ font-size:48px;
+ margin:30px 0 10px;
+ text-shadow:2px 2px 4px rgba(0,0,0,0.3);
+}
+.difficulty{
+ display:flex;
+ gap:15px;
+ margin-bottom:30px;
+}
+.difficulty button{
+ padding:12px 24px;
+ border:none;
+ border-radius:8px;
+ font-size:16px;
+ font-weight:bold;
+ cursor:pointer;
+ transition:transform 0.2s;
+}
+.difficulty button:hover{
+ transform:scale(1.05);
+}
+.diff-easy{background:#22c55e;color:white;}
+.diff-medium{background:#f59e0b;color:white;}
+.diff-hard{background:#ef4444;color:white;}
+.diff-selected{box-shadow:0 0 0 3px white;}
+.games{
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+ gap:25px;
+ max-width:1200px;
+ width:100%;
+}
+.game-card{
+ background:white;
+ border-radius:15px;
+ padding:25px;
+ text-align:center;
+ cursor:pointer;
+ transition:transform 0.3s,box-shadow 0.3s;
+ box-shadow:0 4px 6px rgba(0,0,0,0.1);
+}
+.game-card:hover{
+ transform:translateY(-8px);
+ box-shadow:0 12px 24px rgba(0,0,0,0.2);
+}
+.game-icon{
+ font-size:64px;
+ margin-bottom:15px;
+}
+.game-card h2{
+ color:#333;
+ margin-bottom:10px;
+ font-size:24px;
+}
+.game-card p{
+ color:#666;
+ font-size:14px;
+ line-height:1.5;
+}
+@media(max-width:768px){
+ h1{font-size:32px;}
+ .games{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<h1>🎮 Fun Games</h1>
+<div class="difficulty">
+ <button class="diff-easy diff-selected" onclick="setDifficulty('easy')">Easy</button>
+ <button class="diff-medium" onclick="setDifficulty('medium')">Medium</button>
+ <button class="diff-hard" onclick="setDifficulty('hard')">Hard</button>
+</div>
+<div class="games">
+ <div class="game-card" onclick="location.href='fighter-jet-game.html'">
+  <div class="game-icon">✈️</div>
+  <h2>Fighter Jet</h2>
+  <p>Fly your jet, destroy enemies and bosses. Level-based difficulty!</p>
+ </div>
+ <div class="game-card" onclick="location.href='snake-game.html'">
+  <div class="game-icon">🐍</div>
+  <h2>Snake Game</h2>
+  <p>Classic snake with obstacles and power-ups. Grow and survive!</p>
+ </div>
+ <div class="game-card" onclick="location.href='space-shooter.html'">
+  <div class="game-icon">🚀</div>
+  <h2>Space Shooter</h2>
+  <p>Defend against alien invaders in this classic arcade shooter!</p>
+ </div>
+ <div class="game-card" onclick="location.href='breakout-game.html'">
+  <div class="game-icon">🧱</div>
+  <h2>Breakout</h2>
+  <p>Break all bricks with the ball. Multiple levels and power-ups!</p>
+ </div>
+ <div class="game-card" onclick="location.href='racing-game.html'">
+  <div class="game-icon">🏎️</div>
+  <h2>Racing Game</h2>
+  <p>Race against opponents, avoid obstacles, and reach the finish!</p>
+ </div>
+ <div class="game-card" onclick="location.href='tetris-game.html'">
+  <div class="game-icon">🎮</div>
+  <h2>Tetris</h2>
+  <p>Classic block puzzle game. Clear lines and score high!</p>
+ </div>
+ <div class="game-card" onclick="location.href='flappy-bird.html'">
+  <div class="game-icon">🐦</div>
+  <h2>Flappy Bird</h2>
+  <p>Tap to fly through pipes. Don't crash and beat your high score!</p>
+ </div>
+ <div class="game-card" onclick="location.href='pacman-game.html'">
+  <div class="game-icon">👻</div>
+  <h2>Pac-Man</h2>
+  <p>Eat all dots, avoid ghosts, and collect power pellets!</p>
+ </div>
+ <div class="game-card" onclick="location.href='platform-game.html'">
+  <div class="game-icon">🏃</div>
+  <h2>Platform Jumper</h2>
+  <p>Jump across platforms, collect coins, and avoid enemies!</p>
+ </div>
+ <div class="game-card" onclick="location.href='pong-game.html'">
+  <div class="game-icon">🏓</div>
+  <h2>Pong</h2>
+  <p>Classic paddle game. Beat the AI and score 5 points to win!</p>
+ </div>
+ <div class="game-card" onclick="location.href='whale-game.html'">
+  <div class="game-icon">🐋</div>
+  <h2>Blue Whale</h2>
+  <p>Control a whale and eat swimmers! Race against time!</p>
+ </div>
+ <div class="game-card" style="opacity:0.6;cursor:not-allowed;" onclick="event.preventDefault()">
+  <div class="game-icon">🚗</div>
+  <h2>Hill Climb Racing</h2>
+  <p>Coming Soon...</p>
+ </div>
+ <div class="game-card" style="opacity:0.6;cursor:not-allowed;" onclick="event.preventDefault()">
+  <div class="game-icon">🚕</div>
+  <h2>Driving School</h2>
+  <p>Coming Soon...</p>
+ </div>
+</div>
+<script>
+let difficulty='easy';
+function setDifficulty(level){
+ difficulty=level;
+ localStorage.setItem('gameDifficulty',level);
+ document.querySelectorAll('.difficulty button').forEach(b=>b.classList.remove('diff-selected'));
+ event.target.classList.add('diff-selected');
+}
+if(localStorage.getItem('gameDifficulty')){
+ setDifficulty(localStorage.getItem('gameDifficulty'));
+}
+</script>
+</body>
+</html>

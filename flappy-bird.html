@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Flappy Bird</title>
+<style>
+body{margin:0;overflow:hidden;background:#4ec0ca;font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:center;color:white;height:100vh;}
+#game{background:#4ec0ca;box-shadow:0 0 30px rgba(0,0,0,0.8);display:block;max-width:100vw;max-height:100vh;}
+#ui{position:fixed;top:20px;left:50%;transform:translateX(-50%);font-size:32px;font-weight:bold;color:#fff;text-shadow:2px 2px 4px #000;}
+#gameOver{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(0,0,0,0.9);text-align:center;}
+button{padding:12px 30px;border:none;border-radius:8px;font-size:18px;background:#22c55e;color:white;font-weight:bold;cursor:pointer;margin-top:20px;}
+.back{position:fixed;top:20px;right:20px;padding:8px 16px;font-size:14px;}
+@media(max-width:768px){
+ #game{width:100vw!important;height:100vh!important;}
+ #ui{font-size:24px;top:10px;}
+ .back{top:10px;right:10px;padding:6px 12px;font-size:12px;}
+ button{padding:10px 20px;font-size:16px;}
+}
+</style>
+</head>
+<body>
+<button class="back" onclick="location.href='index.html'">← Back</button>
+<div id="ui">0</div>
+<div id="gameOver">
+ <h1>GAME OVER</h1>
+ <div id="finalScore"></div>
+ <button onclick="location.reload()">Restart</button>
+ <button onclick="location.href='index.html'">Back to Menu</button>
+</div>
+<canvas id="game"></canvas>
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+canvas.width=600;
+canvas.height=800;
+let score=0,level=1;
+let difficulty=localStorage.getItem('gameDifficulty')||'easy';
+let baseGap=difficulty==='hard'?110:difficulty==='medium'?125:140;
+let gapSize=baseGap;
+let bird={x:80,y:250,w:34,h:24,vy:0,gravity:0.5,jump:-8};
+let pipes=[];
+let gameRunning=false;
+let gameStarted=false;
+let frame=0;
+let pipeSpeed=3;
+
+canvas.addEventListener('click',()=>{if(!gameStarted){gameStarted=true;gameRunning=true;}if(gameRunning)bird.vy=bird.jump;});
+window.addEventListener('keydown',e=>{if((e.key===' '||e.key==='ArrowUp'||e.key==='w'||e.key==='W')){if(!gameStarted){gameStarted=true;gameRunning=true;}if(gameRunning)bird.vy=bird.jump;}});
+
+function spawnPipe(){
+ let gap=gapSize;
+ let minH=50;
+ let maxH=canvas.height-gap-minH-100;
+ let h=Math.random()*(maxH-minH)+minH;
+ pipes.push({x:canvas.width,top:h,bottom:h+gap,w:60,passed:false});
+}
+
+function update(){
+ if(!gameRunning)return;
+ bird.vy+=bird.gravity;
+ bird.y+=bird.vy;
+ 
+ if(bird.y+bird.h>canvas.height-100||bird.y<0){
+  gameRunning=false;
+  document.getElementById("finalScore").innerText=`Score: ${score}`;
+  document.getElementById("gameOver").style.display='flex';
+ }
+ 
+ frame++;
+ if(frame%90===0&&gameStarted)spawnPipe();
+ 
+ pipes.forEach((p,i)=>{
+  p.x-=pipeSpeed;
+  if(p.x+p.w<0)pipes.splice(i,1);
+  if(!p.passed&&p.x+p.w<bird.x){
+   p.passed=true;
+   score++;
+   if(score%5===0){
+    level++;
+    gapSize=Math.max(80,baseGap-level*3);
+    pipeSpeed=Math.min(8,3+level*0.3);
+    bird.gravity=Math.min(0.9,0.5+level*0.02);
+   }
+  }
+  if(bird.x+bird.w>p.x&&bird.x<p.x+p.w){
+   if(bird.y<p.top||bird.y+bird.h>p.bottom){
+    gameRunning=false;
+    document.getElementById("finalScore").innerText=`Score: ${score}`;
+    document.getElementById("gameOver").style.display='flex';
+   }
+  }
+ });
+}
+
+function draw(){
+ ctx.fillStyle='#4ec0ca';
+ ctx.fillRect(0,0,canvas.width,canvas.height);
+ 
+ for(let i=0;i<5;i++){
+  ctx.fillStyle='#fff';
+  ctx.globalAlpha=0.6;
+  ctx.beginPath();
+  ctx.arc(50+i*100,80,30,0,Math.PI*2);
+  ctx.fill();
+  ctx.globalAlpha=1;
+ }
+ 
+ pipes.forEach(p=>{
+  ctx.fillStyle='#5cb85c';
+  ctx.fillRect(p.x,0,p.w,p.top);
+  ctx.fillRect(p.x,p.bottom,p.w,canvas.height-p.bottom);
+  ctx.fillStyle='#4a934a';
+  ctx.fillRect(p.x+5,0,p.w-10,p.top);
+  ctx.fillRect(p.x+5,p.bottom,p.w-10,canvas.height-p.bottom);
+  ctx.fillStyle='#3d7a3d';
+  ctx.fillRect(p.x-5,p.top-25,p.w+10,25);
+  ctx.fillRect(p.x-5,p.bottom,p.w+10,25);
+ });
+ 
+ ctx.fillStyle='#fbbf24';
+ ctx.beginPath();
+ ctx.arc(bird.x+bird.w/2,bird.y+bird.h/2,bird.h/2,0,Math.PI*2);
+ ctx.fill();
+ ctx.fillStyle='#fff';
+ ctx.beginPath();
+ ctx.arc(bird.x+22,bird.y+8,5,0,Math.PI*2);
+ ctx.fill();
+ ctx.fillStyle='#000';
+ ctx.beginPath();
+ ctx.arc(bird.x+24,bird.y+8,3,0,Math.PI*2);
+ ctx.fill();
+ ctx.fillStyle='#f97316';
+ ctx.beginPath();
+ ctx.moveTo(bird.x+bird.w,bird.y+bird.h/2);
+ ctx.lineTo(bird.x+bird.w+8,bird.y+bird.h/2-3);
+ ctx.lineTo(bird.x+bird.w+8,bird.y+bird.h/2+3);
+ ctx.fill();
+ 
+ ctx.fillStyle='#d4a574';
+ ctx.fillRect(0,canvas.height-100,canvas.width,100);
+ ctx.fillStyle='#5cb85c';
+ ctx.fillRect(0,canvas.height-100,canvas.width,20);
+ 
+ if(!gameStarted){
+  ctx.fillStyle='#fff';
+  ctx.font='24px Arial';
+  ctx.textAlign='center';
+  ctx.fillText('Press SPACE or Click to Start',canvas.width/2,canvas.height/2);
+ }
+ 
+ document.getElementById("ui").innerText=`Score: ${score} | Level: ${level}`;
+}
+
+function gameLoop(){
+ update();
+ draw();
+ requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+</body>
+</html>

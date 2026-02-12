@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Space Shooter</title>
+<style>
+body{margin:0;overflow:hidden;background:#000;font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:center;color:white;height:100vh;}
+#game{background:#0a0a1a;box-shadow:0 0 30px rgba(0,0,0,0.8);display:block;}
+#ui{position:fixed;top:20px;left:20px;font-size:20px;font-weight:bold;}
+#gameOver{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(0,0,0,0.9);text-align:center;}
+button{padding:12px 30px;border:none;border-radius:8px;font-size:18px;background:#22c55e;color:white;font-weight:bold;cursor:pointer;margin-top:20px;}
+.back{position:fixed;top:20px;right:20px;padding:8px 16px;font-size:14px;}
+</style>
+</head>
+<body>
+<button class="back" onclick="location.href='index.html'">← Back</button>
+<div id="ui">Score: 0 | Lives: 3</div>
+<div id="gameOver">
+ <h1>GAME OVER</h1>
+ <div id="finalScore"></div>
+ <button onclick="location.reload()">Restart</button>
+ <button onclick="location.href='index.html'">Back to Menu</button>
+</div>
+<canvas id="game"></canvas>
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+canvas.width=800;
+canvas.height=600;
+let score=0,lives=3,level=1;
+let difficulty=localStorage.getItem('gameDifficulty')||'easy';
+if(difficulty==='medium')lives=2;
+if(difficulty==='hard')lives=1;
+let player={x:canvas.width/2,y:canvas.height-60,w:40,h:40,speed:6};
+let bullets=[];
+let aliens=[];
+let alienBullets=[];
+let keys={};
+let gameRunning=true;
+
+window.addEventListener('keydown',e=>keys[e.key]=true);
+window.addEventListener('keyup',e=>keys[e.key]=false);
+
+function createAliens(){
+ aliens=[];
+ let rows=3+level+(difficulty==='hard'?2:difficulty==='medium'?1:0);
+ for(let row=0;row<rows;row++){
+  for(let col=0;col<8;col++){
+   aliens.push({x:col*80+60,y:row*50+50,w:40,h:30,dx:2+level*0.5+(difficulty==='hard'?2:difficulty==='medium'?1:0)});
+  }
+ }
+}
+
+function shoot(){
+ bullets.push({x:player.x+player.w/2-2,y:player.y,w:4,h:10,dy:-8});
+}
+
+function update(){
+ if(!gameRunning)return;
+ if(keys['ArrowLeft']&&player.x>0)player.x-=player.speed;
+ if(keys['ArrowRight']&&player.x<canvas.width-player.w)player.x+=player.speed;
+ if(keys[' ']&&Math.random()<0.1)shoot();
+ 
+ bullets.forEach((b,i)=>{
+  b.y+=b.dy;
+  if(b.y<0)bullets.splice(i,1);
+  aliens.forEach((a,ai)=>{
+   if(b.x<a.x+a.w&&b.x+b.w>a.x&&b.y<a.y+a.h&&b.y+b.h>a.y){
+    aliens.splice(ai,1);
+    bullets.splice(i,1);
+    score+=10;
+    if(aliens.length===0){
+     level++;
+     createAliens();
+    }
+   }
+  });
+ });
+ 
+ let moveDown=false;
+ aliens.forEach(a=>{
+  a.x+=a.dx;
+  if(a.x<=0||a.x>=canvas.width-a.w){
+   moveDown=true;
+  }
+  if(Math.random()<0.002+level*0.001){
+   alienBullets.push({x:a.x+a.w/2,y:a.y+a.h,w:4,h:10,dy:4+level*0.3});
+  }
+ });
+ 
+ if(moveDown){
+  aliens.forEach(a=>{
+   a.dx*=-1;
+   a.y+=20;
+  });
+ }
+ 
+ alienBullets.forEach((b,i)=>{
+  b.y+=b.dy;
+  if(b.y>canvas.height)alienBullets.splice(i,1);
+  if(b.x<player.x+player.w&&b.x+b.w>player.x&&b.y<player.y+player.h&&b.y+b.h>player.y){
+   lives--;
+   alienBullets.splice(i,1);
+   if(lives<=0){
+    gameRunning=false;
+    document.getElementById("finalScore").innerText=`Final Score: ${score}`;
+    document.getElementById("gameOver").style.display='flex';
+   }
+  }
+ });
+}
+
+function draw(){
+ ctx.fillStyle='#0a0a1a';
+ ctx.fillRect(0,0,canvas.width,canvas.height);
+ 
+ for(let i=0;i<100;i++){
+  ctx.fillStyle='#fff';
+  ctx.fillRect(Math.random()*canvas.width,Math.random()*canvas.height,2,2);
+ }
+ 
+ ctx.fillStyle='#22c55e';
+ ctx.fillRect(player.x,player.y,player.w,player.h);
+ ctx.fillStyle='#15803d';
+ ctx.fillRect(player.x+5,player.y+5,player.w-10,player.h-10);
+ ctx.fillStyle='#fbbf24';
+ ctx.fillRect(player.x+player.w/2-3,player.y,6,15);
+ 
+ ctx.fillStyle='#fbbf24';
+ bullets.forEach(b=>{
+  ctx.fillRect(b.x,b.y,b.w,b.h);
+  ctx.fillStyle='#fff';
+  ctx.fillRect(b.x+1,b.y,b.w-2,b.h-2);
+  ctx.fillStyle='#fbbf24';
+ });
+ 
+ aliens.forEach(a=>{
+  ctx.fillStyle='#ef4444';
+  ctx.fillRect(a.x,a.y,a.w,a.h);
+  ctx.fillStyle='#7f1d1d';
+  ctx.fillRect(a.x+5,a.y+5,a.w-10,a.h-10);
+  ctx.fillStyle='#fff';
+  ctx.fillRect(a.x+8,a.y+8,6,6);
+  ctx.fillRect(a.x+a.w-14,a.y+8,6,6);
+ });
+ 
+ ctx.fillStyle='#a855f7';
+ alienBullets.forEach(b=>{
+  ctx.fillRect(b.x,b.y,b.w,b.h);
+  ctx.fillStyle='#fff';
+  ctx.fillRect(b.x+1,b.y+1,b.w-2,b.h-2);
+  ctx.fillStyle='#a855f7';
+ });
+ 
+ document.getElementById("ui").innerText=`Score: ${score} | Lives: ${lives} | Level: ${level}`;
+}
+
+function gameLoop(){
+ update();
+ draw();
+ requestAnimationFrame(gameLoop);
+}
+
+createAliens();
+gameLoop();
+</script>
+<script>
+// Touch Controls
+canvas.addEventListener('touchstart',e=>{e.preventDefault();if(!gameRunning)return;if(keys['ArrowLeft']&&player.x>0)player.x-=player.speed;if(keys['ArrowRight']&&player.x<canvas.width-player.w)player.x+=player.speed;if(Math.random()<0.1)shoot();});
+</script>
+</body>
+</html>

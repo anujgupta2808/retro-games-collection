@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Tetris Game</title>
+<style>
+body{margin:0;overflow:hidden;background:#1e1e2e;font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:center;color:white;height:100vh;}
+#game{background:#0a0a0a;box-shadow:0 0 30px rgba(0,0,0,0.8);display:block;}
+#ui{position:fixed;top:20px;left:20px;font-size:20px;font-weight:bold;}
+#gameOver{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(0,0,0,0.9);text-align:center;}
+button{padding:12px 30px;border:none;border-radius:8px;font-size:18px;background:#22c55e;color:white;font-weight:bold;cursor:pointer;margin-top:20px;}
+.back{position:fixed;top:20px;right:20px;padding:8px 16px;font-size:14px;}
+</style>
+</head>
+<body>
+<button class="back" onclick="location.href='index.html'">← Back</button>
+<div id="ui">Score: 0 | Lines: 0</div>
+<div id="gameOver">
+ <h1>GAME OVER</h1>
+ <div id="finalScore"></div>
+ <button onclick="location.reload()">Restart</button>
+ <button onclick="location.href='index.html'">Back to Menu</button>
+</div>
+<canvas id="game"></canvas>
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const cols=10,rows=20,size=35;
+canvas.width=cols*size;
+canvas.height=rows*size;
+let board=Array(rows).fill().map(()=>Array(cols).fill(0));
+let score=0,lines=0;
+let difficulty=localStorage.getItem('gameDifficulty')||'easy';
+let gameRunning=true;
+let dropTime=0,dropInterval=difficulty==='hard'?600:difficulty==='medium'?800:1000;
+
+const shapes=[
+ [[1,1,1,1]],
+ [[1,1],[1,1]],
+ [[1,1,1],[0,1,0]],
+ [[1,1,1],[1,0,0]],
+ [[1,1,1],[0,0,1]],
+ [[1,1,0],[0,1,1]],
+ [[0,1,1],[1,1,0]]
+];
+const colors=['#00f0f0','#f0f000','#a000f0','#0000f0','#f0a000','#00f000','#f00000'];
+
+let piece={shape:null,x:0,y:0,color:0};
+
+function newPiece(){
+ let id=Math.floor(Math.random()*shapes.length);
+ piece={shape:shapes[id],x:Math.floor(cols/2)-1,y:0,color:id};
+ if(collide()){
+  gameRunning=false;
+  document.getElementById("finalScore").innerText=`Score: ${score} | Lines: ${lines}`;
+  document.getElementById("gameOver").style.display='flex';
+ }
+}
+
+function collide(){
+ for(let r=0;r<piece.shape.length;r++){
+  for(let c=0;c<piece.shape[r].length;c++){
+   if(piece.shape[r][c]){
+    let x=piece.x+c;
+    let y=piece.y+r;
+    if(x<0||x>=cols||y>=rows||(y>=0&&board[y][x]))return true;
+   }
+  }
+ }
+ return false;
+}
+
+function merge(){
+ piece.shape.forEach((row,r)=>{
+  row.forEach((val,c)=>{
+   if(val){
+    let y=piece.y+r;
+    let x=piece.x+c;
+    if(y>=0)board[y][x]=piece.color+1;
+   }
+  });
+ });
+}
+
+function clearLines(){
+ for(let r=rows-1;r>=0;r--){
+  if(board[r].every(cell=>cell!==0)){
+   board.splice(r,1);
+   board.unshift(Array(cols).fill(0));
+   lines++;
+   score+=100;
+   if(lines%5===0){
+    dropInterval=Math.max(200,dropInterval-100);
+   }
+   r++;
+  }
+ }
+}
+
+function rotate(){
+ let rotated=piece.shape[0].map((_,i)=>piece.shape.map(row=>row[i]).reverse());
+ let prev=piece.shape;
+ piece.shape=rotated;
+ if(collide())piece.shape=prev;
+}
+
+function move(dir){
+ piece.x+=dir;
+ if(collide())piece.x-=dir;
+}
+
+function drop(){
+ piece.y++;
+ if(collide()){
+  piece.y--;
+  merge();
+  clearLines();
+  newPiece();
+ }
+ dropTime=0;
+}
+
+window.addEventListener('keydown',e=>{
+ if(!gameRunning)return;
+ if(e.key==='ArrowLeft')move(-1);
+ if(e.key==='ArrowRight')move(1);
+ if(e.key==='ArrowDown')drop();
+ if(e.key==='ArrowUp')rotate();
+});
+
+function draw(){
+ ctx.fillStyle='#0a0a0a';
+ ctx.fillRect(0,0,canvas.width,canvas.height);
+ 
+ board.forEach((row,r)=>{
+  row.forEach((val,c)=>{
+   if(val){
+    ctx.fillStyle=colors[val-1];
+    ctx.fillRect(c*size,r*size,size-1,size-1);
+    ctx.fillStyle='rgba(255,255,255,0.2)';
+    ctx.fillRect(c*size+2,r*size+2,size-5,size/2-2);
+    ctx.strokeStyle='rgba(0,0,0,0.3)';
+    ctx.lineWidth=1;
+    ctx.strokeRect(c*size,r*size,size-1,size-1);
+   }
+  });
+ });
+ 
+ if(piece.shape){
+  ctx.fillStyle=colors[piece.color];
+  piece.shape.forEach((row,r)=>{
+   row.forEach((val,c)=>{
+    if(val){
+     ctx.fillRect((piece.x+c)*size,(piece.y+r)*size,size-1,size-1);
+     ctx.fillStyle='rgba(255,255,255,0.2)';
+     ctx.fillRect((piece.x+c)*size+2,(piece.y+r)*size+2,size-5,size/2-2);
+     ctx.fillStyle=colors[piece.color];
+     ctx.strokeStyle='rgba(0,0,0,0.3)';
+     ctx.lineWidth=1;
+     ctx.strokeRect((piece.x+c)*size,(piece.y+r)*size,size-1,size-1);
+    }
+   });
+  });
+ }
+ 
+ document.getElementById("ui").innerText=`Score: ${score} | Lines: ${lines}`;
+}
+
+let lastTime=0;
+function gameLoop(time=0){
+ let deltaTime=time-lastTime;
+ lastTime=time;
+ dropTime+=deltaTime;
+ if(dropTime>dropInterval&&gameRunning){
+  drop();
+ }
+ draw();
+ requestAnimationFrame(gameLoop);
+}
+
+newPiece();
+gameLoop();
+</script>
+<script>
+// Tetris Custom Mobile Controls
+if('ontouchstart' in window){
+ const style=document.createElement('style');
+ style.textContent=`.tetris-btn{position:fixed;width:70px;height:70px;background:rgba(255,255,255,0.3);border:3px solid rgba(255,255,255,0.6);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:32px;user-select:none;touch-action:none;}@media(max-width:768px){.tetris-btn{display:flex;}}`;
+ document.head.appendChild(style);
+ 
+ const btns={
+  left:createBtn('←','auto','auto','120px','20px'),
+  right:createBtn('→','auto','20px','120px','auto'),
+  down:createBtn('↓','auto','110px','120px','auto'),
+  rotate:createBtn('↻','auto','20px','20px','auto')
+ };
+ 
+ function createBtn(txt,t,r,b,l){
+  const btn=document.createElement('div');
+  btn.className='tetris-btn';
+  btn.textContent=txt;
+  btn.style.top=t;
+  btn.style.right=r;
+  btn.style.bottom=b;
+  btn.style.left=l;
+  document.body.appendChild(btn);
+  return btn;
+ }
+ 
+ btns.left.addEventListener('touchstart',e=>{e.preventDefault();move(-1);});
+ btns.right.addEventListener('touchstart',e=>{e.preventDefault();move(1);});
+ btns.down.addEventListener('touchstart',e=>{e.preventDefault();drop();});
+ btns.rotate.addEventListener('touchstart',e=>{e.preventDefault();rotate();});
+}
+</script>
+</body>
+</html>

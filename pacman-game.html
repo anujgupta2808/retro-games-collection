@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Pac-Man</title>
+<style>
+body{margin:0;overflow:hidden;background:#000;font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:center;color:white;height:100vh;}
+#game{background:#000;box-shadow:0 0 30px rgba(0,0,0,0.8);display:block;}
+#ui{position:fixed;top:20px;left:20px;font-size:20px;font-weight:bold;}
+#gameOver{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(0,0,0,0.9);text-align:center;}
+button{padding:12px 30px;border:none;border-radius:8px;font-size:18px;background:#22c55e;color:white;font-weight:bold;cursor:pointer;margin-top:20px;}
+.back{position:fixed;top:20px;right:20px;padding:8px 16px;font-size:14px;}
+</style>
+</head>
+<body>
+<button class="back" onclick="location.href='index.html'">← Back</button>
+<div id="ui">Score: 0 | Lives: 3</div>
+<div id="gameOver">
+ <h1 id="endTitle">GAME OVER</h1>
+ <div id="finalScore"></div>
+ <button onclick="location.reload()">Restart</button>
+ <button onclick="location.href='index.html'">Back to Menu</button>
+</div>
+<canvas id="game"></canvas>
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const s=30;
+canvas.width=s*19;
+canvas.height=s*21;
+let score=0,lives=3;
+let pac={x:9,y:15,dx:0,dy:0,mouth:0};
+let ghosts=[{x:9,y:9,dx:1,dy:0,c:'#ff0000'},{x:8,y:10,dx:0,dy:1,c:'#ffb8ff'},{x:10,y:10,dx:-1,dy:0,c:'#00ffff'},{x:9,y:10,dx:0,dy:-1,c:'#ffb852'}];
+let dots=[];
+let powerMode=0;
+let gameRunning=true;
+let keys={};
+let map=[
+ [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+ [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+ [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
+ [1,2,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,2,1],
+ [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+ [1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,0,1],
+ [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+ [1,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,1],
+ [1,1,1,1,0,1,0,0,0,0,0,0,0,1,0,1,1,1,1],
+ [1,1,1,1,0,1,0,1,1,3,1,1,0,1,0,1,1,1,1],
+ [0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0],
+ [1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1],
+ [1,1,1,1,0,1,0,0,0,0,0,0,0,1,0,1,1,1,1],
+ [1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1],
+ [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+ [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
+ [1,2,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,2,1],
+ [1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1],
+ [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+ [1,0,1,1,1,1,1,1,0,1,0,1,1,1,1,1,1,0,1],
+ [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+];
+
+for(let r=0;r<map.length;r++){
+ for(let c=0;c<map[r].length;c++){
+  if(map[r][c]===0)dots.push({x:c,y:r});
+ }
+}
+
+window.addEventListener('keydown',e=>{
+ if(e.key==='ArrowUp'){pac.dx=0;pac.dy=-1;}
+ if(e.key==='ArrowDown'){pac.dx=0;pac.dy=1;}
+ if(e.key==='ArrowLeft'){pac.dx=-1;pac.dy=0;}
+ if(e.key==='ArrowRight'){pac.dx=1;pac.dy=0;}
+});
+
+function canMove(x,y){
+ return x>=0&&x<19&&y>=0&&y<21&&map[y][x]!==1;
+}
+
+function update(){
+ if(!gameRunning)return;
+ let nx=pac.x+pac.dx;
+ let ny=pac.y+pac.dy;
+ if(canMove(nx,ny)){
+  pac.x=nx;
+  pac.y=ny;
+ }
+ pac.mouth=(pac.mouth+0.2)%1;
+ 
+ dots.forEach((d,i)=>{
+  if(d.x===pac.x&&d.y===pac.y){
+   dots.splice(i,1);
+   score+=10;
+   if(map[d.y][d.x]===2){
+    powerMode=200;
+   }
+  }
+ });
+ 
+ if(powerMode>0)powerMode--;
+ 
+ if(dots.length===0){
+  gameRunning=false;
+  document.getElementById("endTitle").innerText='YOU WIN!';
+  document.getElementById("finalScore").innerText=`Score: ${score}`;
+  document.getElementById("gameOver").style.display='flex';
+ }
+ 
+ ghosts.forEach(g=>{
+  if(Math.random()<0.1){
+   let dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+   let valid=dirs.filter(d=>canMove(g.x+d[0],g.y+d[1]));
+   if(valid.length){
+    let dir=valid[Math.floor(Math.random()*valid.length)];
+    g.dx=dir[0];g.dy=dir[1];
+   }
+  }
+  if(canMove(g.x+g.dx,g.y+g.dy)){
+   g.x+=g.dx;
+   g.y+=g.dy;
+  }
+  if(g.x===pac.x&&g.y===pac.y){
+   if(powerMode>0){
+    score+=100;
+    g.x=9;g.y=9;
+   }else{
+    lives--;
+    pac.x=9;pac.y=15;
+    if(lives<=0){
+     gameRunning=false;
+     document.getElementById("finalScore").innerText=`Score: ${score}`;
+     document.getElementById("gameOver").style.display='flex';
+    }
+   }
+  }
+ });
+}
+
+function draw(){
+ ctx.fillStyle='#000';
+ ctx.fillRect(0,0,canvas.width,canvas.height);
+ 
+ for(let r=0;r<map.length;r++){
+  for(let c=0;c<map[r].length;c++){
+   if(map[r][c]===1){
+    ctx.fillStyle='#2121ff';
+    ctx.fillRect(c*s,r*s,s,s);
+    ctx.strokeStyle='#0000aa';
+    ctx.lineWidth=2;
+    ctx.strokeRect(c*s,r*s,s,s);
+   }
+  }
+ }
+ 
+ dots.forEach(d=>{
+  ctx.fillStyle=map[d.y][d.x]===2?'#fff':'#ffb8ae';
+  let r=map[d.y][d.x]===2?6:3;
+  ctx.beginPath();
+  ctx.arc(d.x*s+s/2,d.y*s+s/2,r,0,Math.PI*2);
+  ctx.fill();
+ });
+ 
+ ctx.fillStyle='#ffff00';
+ ctx.beginPath();
+ let angle=pac.mouth*0.4;
+ let dir=Math.atan2(pac.dy,pac.dx);
+ ctx.arc(pac.x*s+s/2,pac.y*s+s/2,s/2-2,dir+angle,dir+Math.PI*2-angle);
+ ctx.lineTo(pac.x*s+s/2,pac.y*s+s/2);
+ ctx.fill();
+ 
+ ghosts.forEach(g=>{
+  ctx.fillStyle=powerMode>0?'#0000ff':g.c;
+  ctx.beginPath();
+  ctx.arc(g.x*s+s/2,g.y*s+s/2-5,s/2-2,Math.PI,0);
+  ctx.lineTo(g.x*s+s-2,g.y*s+s-2);
+  ctx.lineTo(g.x*s+s-6,g.y*s+s/2+5);
+  ctx.lineTo(g.x*s+s/2,g.y*s+s-2);
+  ctx.lineTo(g.x*s+6,g.y*s+s/2+5);
+  ctx.lineTo(g.x*s+2,g.y*s+s-2);
+  ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.fillRect(g.x*s+8,g.y*s+8,6,8);
+  ctx.fillRect(g.x*s+16,g.y*s+8,6,8);
+ });
+ 
+ document.getElementById("ui").innerText=`Score: ${score} | Lives: ${lives}`;
+}
+
+let lastTime=0;
+function gameLoop(time){
+ if(time-lastTime>100){
+  update();
+  draw();
+  lastTime=time;
+ }
+ requestAnimationFrame(gameLoop);
+}
+
+gameLoop(0);
+</script>
+<script>
+// Touch Swipe Controls
+let touchStartX=0,touchStartY=0;
+canvas.addEventListener('touchstart',e=>{
+ touchStartX=e.touches[0].clientX;
+ touchStartY=e.touches[0].clientY;
+});
+canvas.addEventListener('touchend',e=>{
+ let touchEndX=e.changedTouches[0].clientX;
+ let touchEndY=e.changedTouches[0].clientY;
+ let diffX=touchEndX-touchStartX;
+ let diffY=touchEndY-touchStartY;
+ if(Math.abs(diffX)>Math.abs(diffY)){
+  if(diffX>30){window.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight'}));}
+  else if(diffX<-30){window.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft'}));}
+ }else{
+  if(diffY>30){window.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown'}));}
+  else if(diffY<-30){window.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp'}));}
+ }
+});
+</script>
+</body>
+</html>

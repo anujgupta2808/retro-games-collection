@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Hill Climb Racing</title>
+<style>
+body{margin:0;overflow:hidden;background:#87ceeb;font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:center;color:white;height:100vh;}
+#game{background:#87ceeb;box-shadow:0 0 30px rgba(0,0,0,0.8);display:block;}
+#ui{position:fixed;top:20px;left:20px;font-size:20px;font-weight:bold;color:#000;text-shadow:1px 1px 2px #fff;}
+#gameOver{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(0,0,0,0.9);text-align:center;}
+button{padding:12px 30px;border:none;border-radius:8px;font-size:18px;background:#22c55e;color:white;font-weight:bold;cursor:pointer;margin:5px;}
+.back{position:fixed;top:20px;right:20px;padding:8px 16px;font-size:14px;}
+</style>
+</head>
+<body>
+<button class="back" onclick="location.href='index.html'">← Back</button>
+<div id="ui">Distance: 0m | Fuel: 100%</div>
+<div id="gameOver">
+ <h1>GAME OVER</h1>
+ <div id="finalScore"></div>
+ <button onclick="location.reload()">Restart</button>
+ <button onclick="location.href='index.html'">Back to Menu</button>
+</div>
+<canvas id="game"></canvas>
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+canvas.width=800;
+canvas.height=600;
+let difficulty=localStorage.getItem('gameDifficulty')||'easy';
+let car={x:100,y:300,w:60,h:40,vx:0,vy:0,angle:0,wheelAngle:0,speed:0,maxSpeed:8,jumping:false,jumpPower:0,damage:0,jumpCooldown:0};
+let fuel=100;
+let distance=0;
+let score=0;
+let level=1;
+let terrain=[];
+let coins=[];
+let fuelCans=[];
+let healKits=[];
+let rocks=[];
+let checkpoints=[];
+let keys={};
+let gameRunning=true;
+let cameraX=0;
+let gravity=0.5;
+let fuelRate=difficulty==='hard'?0.05:difficulty==='medium'?0.03:0.02;
+
+window.addEventListener('keydown',e=>keys[e.key]=true);
+window.addEventListener('keyup',e=>keys[e.key]=false);
+
+function generateTerrain(){
+ terrain=[];
+ let y=400;
+ for(let x=0;x<10000;x+=20){
+  y+=Math.random()*40-20;
+  y=Math.max(300,Math.min(500,y));
+  if(x>500&&Math.random()<0.1){
+   y-=Math.random()*(100+level*20);
+  }
+  if(x>1000&&Math.random()<0.05){
+   y+=Math.random()*(80+level*15);
+  }
+  terrain.push({x:x,y:y});
+ }
+ checkpoints=[{x:1500,reached:false},{x:3000,reached:false},{x:5000,reached:false},{x:7000,reached:false}];
+}
+
+function spawnCoin(){
+ if(Math.random()<0.03){
+  let tx=Math.floor((cameraX+canvas.width)/20);
+  if(tx<terrain.length){
+   coins.push({x:terrain[tx].x,y:terrain[tx].y-60,r:12,collected:false});
+  }
+ }
+}
+
+function spawnFuelCan(){
+ if(Math.random()<0.002){
+  let tx=Math.floor((cameraX+canvas.width)/20);
+  if(tx<terrain.length){
+   fuelCans.push({x:terrain[tx].x,y:terrain[tx].y-50,w:25,h:30,collected:false});
+  }
+ }
+}
+
+function spawnHealKit(){
+ if(Math.random()<0.006){
+  let tx=Math.floor((cameraX+canvas.width)/20);
+  if(tx<terrain.length){
+   healKits.push({x:terrain[tx].x,y:terrain[tx].y-55,w:28,h:28,collected:false});
+  }
+ }
+}
+
+function spawnRock(){
+ if(Math.random()<0.005+level*0.002){
+  let tx=Math.floor((cameraX+canvas.width)/20);
+  if(tx<terrain.length){
+   rocks.push({x:terrain[tx].x,y:terrain[tx].y-30,w:40,h:30});
+  }
+ }
+}
+
+function getTerrainY(x){
+ let idx=Math.floor(x/20);
+ if(idx>=0&&idx<terrain.length-1){
+  let t1=terrain[idx];
+  let t2=terrain[idx+1];
+  let ratio=(x-t1.x)/(t2.x-t1.x);
+  return t1.y+(t2.y-t1.y)*ratio;
+ }
+ return 400;
+}
+
+function update(){
+ if(!gameRunning)return;
+ 
+ if(keys['ArrowRight']||keys['d']||keys['D']){
+  car.speed=Math.min(car.maxSpeed,car.speed+0.3);
+  fuel-=fuelRate;
+ }else{
+  car.speed*=0.98;
+ }
+ 
+ if(keys['ArrowLeft']||keys['a']||keys['A']){
+  car.speed=Math.max(-3,car.speed-0.2);
+ }
+ 
+ if(car.jumpCooldown>0)car.jumpCooldown--;
+ 
+ if((keys['ArrowUp']||keys['w']||keys['W']||keys[' '])&&!car.jumping&&car.jumpCooldown===0){
+  car.jumping=true;
+  car.jumpPower=-4.5;
+  car.jumpCooldown=45;
+ }
+ 
+ car.vx=Math.cos(car.angle)*car.speed;
+ if(car.jumping){
+  car.vy+=car.jumpPower;
+  car.jumpPower+=gravity;
+ }else{
+  car.vy+=gravity;
+ }
+ car.x+=car.vx;
+ car.y+=car.vy;
+ 
+ let groundY=getTerrainY(car.x);
+ if(car.y+car.h/2>groundY){
+  car.y=groundY-car.h/2;
+  car.vy=0;
+  car.jumping=false;
+  car.jumpPower=0;
+  let nextY=getTerrainY(car.x+20);
+  car.angle=Math.atan2(nextY-groundY,20)*0.5;
+ }
+ 
+ if(Math.abs(car.angle)>1.2||car.y>canvas.height){
+  gameRunning=false;
+  document.getElementById("finalScore").innerText=`Distance: ${Math.floor(distance)}m`;
+  document.getElementById("gameOver").style.display='flex';
+ }
+ 
+ cameraX=car.x-200;
+ distance=Math.max(distance,car.x/10);
+ 
+ checkpoints.forEach(cp=>{
+  if(!cp.reached&&car.x>=cp.x){
+   cp.reached=true;
+   score+=50;
+  }
+ });
+ 
+ if(distance>level*200){
+  level++;
+  gravity+=0.05;
+  fuelRate+=0.01;
+ }
+ 
+ spawnCoin();
+ spawnFuelCan();
+ spawnHealKit();
+ spawnRock();
+ 
+ coins.forEach((c,i)=>{
+  if(!c.collected&&Math.hypot(car.x-c.x,car.y-c.y)<car.w/2+c.r){
+   c.collected=true;
+   score+=10;
+   coins.splice(i,1);
+  }
+ });
+ 
+ fuelCans.forEach((f,i)=>{
+  if(!f.collected&&Math.hypot(car.x-f.x,car.y-f.y)<car.w/2+f.w/2){
+   f.collected=true;
+   fuel=Math.min(100,fuel+25);
+   fuelCans.splice(i,1);
+  }
+ });
+ 
+ healKits.forEach((h,i)=>{
+  if(!h.collected&&Math.hypot(car.x-h.x,car.y-h.y)<car.w/2+h.w/2){
+   h.collected=true;
+   car.damage=Math.max(0,car.damage-30);
+   healKits.splice(i,1);
+  }
+ });
+ 
+ rocks.forEach((r,i)=>{
+  if(Math.hypot(car.x-r.x,car.y-r.y)<car.w/2+r.w/2){
+   if(!car.jumping){
+    car.speed*=-0.5;
+    car.vy=-5;
+    car.damage+=15;
+   }
+   rocks.splice(i,1);
+  }
+ });
+ 
+ if(fuel<=0||car.damage>=100){
+  gameRunning=false;
+  let reason=fuel<=0?'Out of Fuel!':'Too Much Damage!';
+  document.getElementById("finalScore").innerText=`${reason} Distance: ${Math.floor(distance)}m | Score: ${score}`;
+  document.getElementById("gameOver").style.display='flex';
+ }
+}
+
+function draw(){
+ let gradient=ctx.createLinearGradient(0,0,0,canvas.height);
+ gradient.addColorStop(0,'#87ceeb');
+ gradient.addColorStop(0.6,'#b0d4f1');
+ gradient.addColorStop(1,'#e8f4f8');
+ ctx.fillStyle=gradient;
+ ctx.fillRect(0,0,canvas.width,canvas.height);
+ 
+ ctx.fillStyle='rgba(255,255,255,0.8)';
+ for(let i=0;i<30;i++){
+  ctx.beginPath();
+  ctx.arc(Math.random()*canvas.width,Math.random()*250,Math.random()*4+2,0,Math.PI*2);
+  ctx.fill();
+ }
+ 
+ let sun=ctx.createRadialGradient(700,80,20,700,80,60);
+ sun.addColorStop(0,'#fff');
+ sun.addColorStop(0.5,'#ffd700');
+ sun.addColorStop(1,'rgba(255,215,0,0)');
+ ctx.fillStyle=sun;
+ ctx.beginPath();
+ ctx.arc(700,80,60,0,Math.PI*2);
+ ctx.fill();
+ 
+ ctx.save();
+ ctx.translate(-cameraX,0);
+ 
+ ctx.shadowColor='rgba(0,0,0,0.3)';
+ ctx.shadowBlur=10;
+ ctx.shadowOffsetY=5;
+ 
+ let terrainGrad=ctx.createLinearGradient(0,350,0,500);
+ terrainGrad.addColorStop(0,'#8b6914');
+ terrainGrad.addColorStop(1,'#654321');
+ ctx.fillStyle=terrainGrad;
+ ctx.beginPath();
+ ctx.moveTo(terrain[0].x,terrain[0].y);
+ terrain.forEach(t=>ctx.lineTo(t.x,t.y));
+ ctx.lineTo(terrain[terrain.length-1].x,canvas.height);
+ ctx.lineTo(0,canvas.height);
+ ctx.fill();
+ 
+ ctx.shadowBlur=0;
+ ctx.shadowOffsetY=0;
+ 
+ let grassGrad=ctx.createLinearGradient(0,0,0,20);
+ grassGrad.addColorStop(0,'#4a7c2c');
+ grassGrad.addColorStop(1,'#2d5016');
+ ctx.fillStyle=grassGrad;
+ ctx.beginPath();
+ ctx.moveTo(terrain[0].x,terrain[0].y);
+ terrain.forEach(t=>ctx.lineTo(t.x,t.y));
+ ctx.strokeStyle='#3a6622';
+ ctx.lineWidth=8;
+ ctx.stroke();
+ ctx.lineTo(terrain[terrain.length-1].x,terrain[0].y+20);
+ ctx.lineTo(0,terrain[0].y+20);
+ ctx.fill();
+ 
+ coins.forEach(c=>{
+  if(!c.collected){
+   ctx.shadowColor='rgba(251,191,36,0.5)';
+   ctx.shadowBlur=8;
+   let coinGrad=ctx.createRadialGradient(c.x,c.y,0,c.x,c.y,c.r);
+   coinGrad.addColorStop(0,'#ffd700');
+   coinGrad.addColorStop(0.7,'#fbbf24');
+   coinGrad.addColorStop(1,'#d97706');
+   ctx.fillStyle=coinGrad;
+   ctx.beginPath();
+   ctx.arc(c.x,c.y,c.r,0,Math.PI*2);
+   ctx.fill();
+   ctx.shadowBlur=0;
+   ctx.strokeStyle='#b45309';
+   ctx.lineWidth=2;
+   ctx.stroke();
+   ctx.fillStyle='#fff';
+   ctx.font='bold 14px Arial';
+   ctx.textAlign='center';
+   ctx.fillText('$',c.x,c.y+5);
+  }
+ });
+ 
+ fuelCans.forEach(f=>{
+  if(!f.collected){
+   ctx.fillStyle='#ef4444';
+   ctx.fillRect(f.x-f.w/2,f.y-f.h/2,f.w,f.h);
+   ctx.fillStyle='#7f1d1d';
+   ctx.fillRect(f.x-f.w/2+3,f.y-f.h/2+3,f.w-6,f.h-6);
+   ctx.fillStyle='#fff';
+   ctx.font='16px Arial';
+   ctx.textAlign='center';
+   ctx.fillText('⛽',f.x,f.y+5);
+  }
+ });
+ 
+ healKits.forEach(h=>{
+  if(!h.collected){
+   ctx.fillStyle='#22c55e';
+   ctx.fillRect(h.x-h.w/2,h.y-h.h/2,h.w,h.h);
+   ctx.fillStyle='#16a34a';
+   ctx.fillRect(h.x-h.w/2+3,h.y-h.h/2+3,h.w-6,h.h-6);
+   ctx.fillStyle='#fff';
+   ctx.fillRect(h.x-2,h.y-h.h/2+8,4,12);
+   ctx.fillRect(h.x-h.w/2+8,h.y-2,12,4);
+  }
+ });
+ 
+ rocks.forEach(r=>{
+  ctx.shadowColor='rgba(0,0,0,0.4)';
+  ctx.shadowBlur=6;
+  ctx.shadowOffsetY=3;
+  let rockGrad=ctx.createRadialGradient(r.x-8,r.y-8,5,r.x,r.y,r.w/2);
+  rockGrad.addColorStop(0,'#94a3b8');
+  rockGrad.addColorStop(0.6,'#64748b');
+  rockGrad.addColorStop(1,'#475569');
+  ctx.fillStyle=rockGrad;
+  ctx.beginPath();
+  ctx.arc(r.x,r.y,r.w/2,0,Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(255,255,255,0.3)';
+  ctx.beginPath();
+  ctx.arc(r.x-8,r.y-8,r.w/4,0,Math.PI*2);
+  ctx.fill();
+ });
+ 
+ checkpoints.forEach(cp=>{
+  let cpY=getTerrainY(cp.x);
+  ctx.fillStyle=cp.reached?'rgba(34,197,94,0.6)':'rgba(239,68,68,0.6)';
+  ctx.fillRect(cp.x-5,cpY-100,10,100);
+  ctx.fillStyle=cp.reached?'#22c55e':'#ef4444';
+  ctx.beginPath();
+  ctx.moveTo(cp.x-5,cpY-100);
+  ctx.lineTo(cp.x+15,cpY-85);
+  ctx.lineTo(cp.x-5,cpY-70);
+  ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.font='bold 12px Arial';
+  ctx.fillText('🏁',cp.x-8,cpY-75);
+ });
+ 
+ ctx.save();
+ ctx.translate(car.x,car.y);
+ ctx.rotate(car.angle);
+ 
+ ctx.shadowColor='rgba(0,0,0,0.4)';
+ ctx.shadowBlur=8;
+ ctx.shadowOffsetY=4;
+ 
+ let carGrad=ctx.createLinearGradient(-car.w/2,-car.h/2,car.w/2,car.h/2);
+ carGrad.addColorStop(0,'#f87171');
+ carGrad.addColorStop(0.5,'#ef4444');
+ carGrad.addColorStop(1,'#dc2626');
+ ctx.fillStyle=carGrad;
+ ctx.fillRect(-car.w/2,-car.h/2,car.w,car.h);
+ 
+ ctx.shadowBlur=0;
+ ctx.fillStyle='rgba(0,0,0,0.2)';
+ ctx.fillRect(-car.w/2+2,-car.h/2+2,car.w-4,car.h/2);
+ 
+ ctx.fillStyle='#60a5fa';
+ ctx.fillRect(-car.w/2+8,-car.h/2+3,18,12);
+ ctx.fillRect(car.w/2-26,-car.h/2+3,18,12);
+ ctx.fillStyle='rgba(255,255,255,0.6)';
+ ctx.fillRect(-car.w/2+9,-car.h/2+4,16,6);
+ ctx.fillRect(car.w/2-25,-car.h/2+4,16,6);
+ 
+ ctx.fillStyle='#fbbf24';
+ ctx.fillRect(-car.w/2,-car.h/2,car.w,4);
+ ctx.fillRect(car.w/2-8,-car.h/2+8,6,6);
+ 
+ ctx.fillStyle='#1a1a1a';
+ ctx.beginPath();
+ ctx.arc(-car.w/2+10,car.h/2,13,0,Math.PI*2);
+ ctx.arc(car.w/2-10,car.h/2,13,0,Math.PI*2);
+ ctx.fill();
+ ctx.fillStyle='#333';
+ ctx.beginPath();
+ ctx.arc(-car.w/2+10,car.h/2,9,0,Math.PI*2);
+ ctx.arc(car.w/2-10,car.h/2,9,0,Math.PI*2);
+ ctx.fill();
+ ctx.fillStyle='#666';
+ ctx.beginPath();
+ ctx.arc(-car.w/2+10,car.h/2,5,0,Math.PI*2);
+ ctx.arc(car.w/2-10,car.h/2,5,0,Math.PI*2);
+ ctx.fill();
+ ctx.restore();
+ 
+ ctx.restore();
+ 
+ ctx.fillStyle='#000';
+ ctx.fillRect(10,10,220,60);
+ ctx.fillStyle='#22c55e';
+ ctx.fillRect(15,15,210,20);
+ ctx.fillStyle='#fbbf24';
+ ctx.fillRect(15,15,fuel*2.1,20);
+ ctx.fillStyle='#fff';
+ ctx.font='14px Arial';
+ ctx.fillText(`Fuel: ${Math.floor(fuel)}%`,120,29);
+ 
+ ctx.fillStyle='#ef4444';
+ ctx.fillRect(15,40,210,20);
+ ctx.fillStyle='#22c55e';
+ ctx.fillRect(15,40,(100-car.damage)*2.1,20);
+ ctx.fillStyle='#fff';
+ ctx.fillText(`Damage: ${Math.floor(car.damage)}%`,120,54);
+ 
+ let nextCP=checkpoints.find(cp=>!cp.reached);
+ let task=nextCP?`Drive to checkpoint (${nextCP.x}m)`:'All checkpoints reached!';
+ let speed=Math.abs(Math.floor(car.speed*10));
+ document.getElementById("ui").innerText=`Level: ${level} | Task: ${task}\nSpeed: ${speed} km/h | Damage: ${Math.floor(car.damage)}%`;
+}
+
+function gameLoop(){
+ update();
+ draw();
+ requestAnimationFrame(gameLoop);
+}
+
+generateTerrain();
+gameLoop();
+</script>
+</body>
+</html>

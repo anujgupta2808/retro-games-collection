@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Pong Game</title>
+<style>
+body{margin:0;overflow:hidden;background:#000;font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:center;color:white;height:100vh;}
+#game{background:#000;box-shadow:0 0 30px rgba(0,0,0,0.8);display:block;}
+#ui{position:fixed;top:20px;left:50%;transform:translateX(-50%);font-size:48px;font-weight:bold;}
+#gameOver{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(0,0,0,0.9);text-align:center;}
+button{padding:12px 30px;border:none;border-radius:8px;font-size:18px;background:#22c55e;color:white;font-weight:bold;cursor:pointer;margin-top:20px;}
+.back{position:fixed;top:20px;right:20px;padding:8px 16px;font-size:14px;}
+</style>
+</head>
+<body>
+<button class="back" onclick="location.href='index.html'">← Back</button>
+<div id="ui">0 : 0</div>
+<div id="gameOver">
+ <h1 id="winner"></h1>
+ <button onclick="location.reload()">Restart</button>
+ <button onclick="location.href='index.html'">Back to Menu</button>
+</div>
+<canvas id="game"></canvas>
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+canvas.width=800;
+canvas.height=600;
+let p1={x:20,y:250,w:15,h:100,vy:0,score:0};
+let p2={x:765,y:250,w:15,h:100,vy:0,score:0};
+let ball={x:400,y:300,r:10,vx:5,vy:5};
+let keys={};
+let gameRunning=true;
+
+window.addEventListener('keydown',e=>keys[e.key]=true);
+window.addEventListener('keyup',e=>keys[e.key]=false);
+
+function resetBall(){
+ ball.x=canvas.width/2;
+ ball.y=canvas.height/2;
+ ball.vx=5*(Math.random()<0.5?1:-1);
+ ball.vy=(Math.random()-0.5)*8;
+}
+
+function update(){
+ if(!gameRunning)return;
+ 
+ if(keys['w']&&p1.y>0)p1.y-=6;
+ if(keys['s']&&p1.y<canvas.height-p1.h)p1.y+=6;
+ if(keys['ArrowUp']&&p1.y>0)p1.y-=6;
+ if(keys['ArrowDown']&&p1.y<canvas.height-p1.h)p1.y+=6;
+ 
+ let target=ball.y-p2.h/2;
+ if(p2.y<target-2)p2.y+=4;
+ if(p2.y>target+2)p2.y-=4;
+ 
+ ball.x+=ball.vx;
+ ball.y+=ball.vy;
+ 
+ if(ball.y-ball.r<0||ball.y+ball.r>canvas.height)ball.vy*=-1;
+ 
+ if(ball.x-ball.r<p1.x+p1.w&&ball.y>p1.y&&ball.y<p1.y+p1.h){
+  ball.vx=Math.abs(ball.vx);
+  ball.vy+=(ball.y-(p1.y+p1.h/2))*0.1;
+ }
+ 
+ if(ball.x+ball.r>p2.x&&ball.y>p2.y&&ball.y<p2.y+p2.h){
+  ball.vx=-Math.abs(ball.vx);
+  ball.vy+=(ball.y-(p2.y+p2.h/2))*0.1;
+ }
+ 
+ if(ball.x<0){
+  p2.score++;
+  resetBall();
+  if(p2.score>=5){
+   gameRunning=false;
+   document.getElementById("winner").innerText='AI WINS!';
+   document.getElementById("gameOver").style.display='flex';
+  }
+ }
+ 
+ if(ball.x>canvas.width){
+  p1.score++;
+  resetBall();
+  if(p1.score>=5){
+   gameRunning=false;
+   document.getElementById("winner").innerText='YOU WIN!';
+   document.getElementById("gameOver").style.display='flex';
+  }
+ }
+}
+
+function draw(){
+ ctx.fillStyle='#000';
+ ctx.fillRect(0,0,canvas.width,canvas.height);
+ 
+ ctx.strokeStyle='#fff';
+ ctx.lineWidth=4;
+ ctx.setLineDash([20,20]);
+ ctx.beginPath();
+ ctx.moveTo(canvas.width/2,0);
+ ctx.lineTo(canvas.width/2,canvas.height);
+ ctx.stroke();
+ ctx.setLineDash([]);
+ 
+ ctx.fillStyle='#22c55e';
+ ctx.fillRect(p1.x,p1.y,p1.w,p1.h);
+ ctx.fillStyle='#16a34a';
+ ctx.fillRect(p1.x+3,p1.y+10,p1.w-6,p1.h-20);
+ 
+ ctx.fillStyle='#ef4444';
+ ctx.fillRect(p2.x,p2.y,p2.w,p2.h);
+ ctx.fillStyle='#7f1d1d';
+ ctx.fillRect(p2.x+3,p2.y+10,p2.w-6,p2.h-20);
+ 
+ ctx.fillStyle='#fff';
+ ctx.beginPath();
+ ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+ ctx.fill();
+ ctx.fillStyle='#ddd';
+ ctx.beginPath();
+ ctx.arc(ball.x-3,ball.y-3,ball.r/2,0,Math.PI*2);
+ ctx.fill();
+ 
+ document.getElementById("ui").innerText=`${p1.score} : ${p2.score}`;
+}
+
+function gameLoop(){
+ update();
+ draw();
+ requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+<script>
+// Touch Swipe Controls
+let touchStartX=0,touchStartY=0;
+canvas.addEventListener('touchstart',e=>{
+ touchStartX=e.touches[0].clientX;
+ touchStartY=e.touches[0].clientY;
+});
+canvas.addEventListener('touchend',e=>{
+ let touchEndX=e.changedTouches[0].clientX;
+ let touchEndY=e.changedTouches[0].clientY;
+ let diffY=touchEndY-touchStartY;
+ if(diffY<-30){keys['w']=true;keys['ArrowUp']=true;}
+ else if(diffY>30){keys['s']=true;keys['ArrowDown']=true;}
+ setTimeout(()=>{keys['w']=false;keys['s']=false;keys['ArrowUp']=false;keys['ArrowDown']=false;},100);
+});
+</script>
+</body>
+</html>
