@@ -160,5 +160,26 @@ function gameLoop(){
 
 gameLoop();
 </script>
+<script>
+// Mobile Touch Controls
+canvas.addEventListener('touchstart',e=>{
+ e.preventDefault();
+ if(!gameStarted){
+  gameStarted=true;
+  gameRunning=true;
+ }
+ if(gameRunning){
+  bird.vy=bird.jump;
+ }
+});
+
+canvas.addEventListener('touchmove',e=>{
+ e.preventDefault();
+});
+
+canvas.addEventListener('touchend',e=>{
+ e.preventDefault();
+});
+</script>
 </body>
 </html>
