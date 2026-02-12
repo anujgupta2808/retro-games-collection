@@ -166,8 +166,48 @@ createAliens();
 gameLoop();
 </script>
 <script>
-// Touch Controls
-canvas.addEventListener('touchstart',e=>{e.preventDefault();if(!gameRunning)return;if(keys['ArrowLeft']&&player.x>0)player.x-=player.speed;if(keys['ArrowRight']&&player.x<canvas.width-player.w)player.x+=player.speed;if(Math.random()<0.1)shoot();});
+// Mobile Touch Controls
+let touchStartX=0,touchStartY=0,isTouching=false;
+
+function getTouchPos(e,touch){
+ const rect=canvas.getBoundingClientRect();
+ return{x:touch.clientX-rect.left,y:touch.clientY-rect.top};
+}
+
+canvas.addEventListener('touchstart',e=>{
+ e.preventDefault();
+ const touch=e.touches[0];
+ const pos=getTouchPos(e,touch);
+ touchStartX=pos.x;
+ touchStartY=pos.y;
+ isTouching=true;
+});
+
+canvas.addEventListener('touchmove',e=>{
+ e.preventDefault();
+ if(!isTouching||!gameRunning)return;
+ const touch=e.touches[0];
+ const pos=getTouchPos(e,touch);
+ 
+ // Move player toward touch
+ if(pos.x<player.x+player.w/2)keys['ArrowLeft']=true;
+ else keys['ArrowLeft']=false;
+ if(pos.x>player.x+player.w/2)keys['ArrowRight']=true;
+ else keys['ArrowRight']=false;
+});
+
+canvas.addEventListener('touchend',e=>{
+ e.preventDefault();
+ if(!isTouching)return;
+ 
+ // Stop movement
+ keys['ArrowLeft']=false;
+ keys['ArrowRight']=false;
+ 
+ // Shoot
+ if(gameRunning&&Math.random()<0.3)shoot();
+ isTouching=false;
+});
 </script>
 </body>
 </html>
