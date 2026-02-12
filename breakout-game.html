@@ -132,5 +132,36 @@ function gameLoop(){
 createBricks();
 gameLoop();
 </script>
+<script>
+// Mobile Touch Controls
+let isTouching=false;
+
+function getTouchPos(e,touch){
+ const rect=canvas.getBoundingClientRect();
+ return{x:touch.clientX-rect.left,y:touch.clientY-rect.top};
+}
+
+canvas.addEventListener('touchstart',e=>{
+ e.preventDefault();
+ isTouching=true;
+});
+
+canvas.addEventListener('touchmove',e=>{
+ e.preventDefault();
+ if(!isTouching||!gameRunning)return;
+ const touch=e.touches[0];
+ const pos=getTouchPos(e,touch);
+ 
+ // Move paddle to follow touch X position
+ paddle.x=pos.x-paddle.w/2;
+ if(paddle.x<0)paddle.x=0;
+ if(paddle.x>canvas.width-paddle.w)paddle.x=canvas.width-paddle.w;
+});
+
+canvas.addEventListener('touchend',e=>{
+ e.preventDefault();
+ isTouching=false;
+});
+</script>
 </body>
 </html>
