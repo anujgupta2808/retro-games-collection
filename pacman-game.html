@@ -199,17 +199,35 @@ function gameLoop(time){
 gameLoop(0);
 </script>
 <script>
-// Touch Swipe Controls
-let touchStartX=0,touchStartY=0;
+// Mobile Touch Controls
+let touchStartX=0,touchStartY=0,isTouching=false;
+
+function getTouchPos(e,touch){
+ const rect=canvas.getBoundingClientRect();
+ return{x:touch.clientX-rect.left,y:touch.clientY-rect.top};
+}
+
 canvas.addEventListener('touchstart',e=>{
- touchStartX=e.touches[0].clientX;
- touchStartY=e.touches[0].clientY;
+ e.preventDefault();
+ const touch=e.touches[0];
+ const pos=getTouchPos(e,touch);
+ touchStartX=pos.x;
+ touchStartY=pos.y;
+ isTouching=true;
 });
+
+canvas.addEventListener('touchmove',e=>{
+ e.preventDefault();
+});
+
 canvas.addEventListener('touchend',e=>{
- let touchEndX=e.changedTouches[0].clientX;
- let touchEndY=e.changedTouches[0].clientY;
- let diffX=touchEndX-touchStartX;
- let diffY=touchEndY-touchStartY;
+ e.preventDefault();
+ if(!isTouching)return;
+ const touch=e.changedTouches[0];
+ const pos=getTouchPos(e,touch);
+ let diffX=pos.x-touchStartX;
+ let diffY=pos.y-touchStartY;
+ 
  if(Math.abs(diffX)>Math.abs(diffY)){
   if(diffX>30){window.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight'}));}
   else if(diffX<-30){window.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft'}));}
@@ -217,6 +235,7 @@ canvas.addEventListener('touchend',e=>{
   if(diffY>30){window.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown'}));}
   else if(diffY<-30){window.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp'}));}
  }
+ isTouching=false;
 });
 </script>
 </body>
