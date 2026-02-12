@@ -135,19 +135,38 @@ function gameLoop(){
 gameLoop();
 </script>
 <script>
-// Touch Swipe Controls
-let touchStartX=0,touchStartY=0;
+// Mobile Touch Controls
+let touchStartY=0,isTouching=false;
+
+function getTouchPos(e,touch){
+ const rect=canvas.getBoundingClientRect();
+ return{x:touch.clientX-rect.left,y:touch.clientY-rect.top};
+}
+
 canvas.addEventListener('touchstart',e=>{
- touchStartX=e.touches[0].clientX;
- touchStartY=e.touches[0].clientY;
+ e.preventDefault();
+ const touch=e.touches[0];
+ const pos=getTouchPos(e,touch);
+ touchStartY=pos.y;
+ isTouching=true;
 });
+
+canvas.addEventListener('touchmove',e=>{
+ e.preventDefault();
+ if(!isTouching||!gameRunning)return;
+ const touch=e.touches[0];
+ const pos=getTouchPos(e,touch);
+ 
+ // Move paddle to follow touch Y position
+ let targetY=pos.y-p1.h/2;
+ if(targetY<0)targetY=0;
+ if(targetY>canvas.height-p1.h)targetY=canvas.height-p1.h;
+ p1.y=targetY;
+});
+
 canvas.addEventListener('touchend',e=>{
- let touchEndX=e.changedTouches[0].clientX;
- let touchEndY=e.changedTouches[0].clientY;
- let diffY=touchEndY-touchStartY;
- if(diffY<-30){keys['w']=true;keys['ArrowUp']=true;}
- else if(diffY>30){keys['s']=true;keys['ArrowDown']=true;}
- setTimeout(()=>{keys['w']=false;keys['s']=false;keys['ArrowUp']=false;keys['ArrowDown']=false;},100);
+ e.preventDefault();
+ isTouching=false;
 });
 </script>
 </body>
