@@ -81,19 +81,6 @@ A fast-paced fighter jet game where you battle waves of enemies, defeat powerful
 - **Bonuses**: Rotating collectible items
 - **UI**: Real-time health bar and score display
 
-## 🚀 Getting Started
-
-1. **Download**: Clone or download this repository
-2. **Run**: Open `fighter-jet-game.html` in any modern web browser
-3. **Play**: No installation or setup required!
-
-```bash
-git clone https://github.com/yourusername/html5-games-collection.git
-cd html5-games-collection
-# Open index.html in your browser for the game menu
-# Or open any individual game file directly
-```
-
 ## 🌟 Game Mechanics
 
 ### Difficulty Scaling
@@ -151,13 +138,8 @@ Feel free to fork this project and submit pull requests! Some ideas for improvem
 
 ## 📄 License
 
-This project is open source and available under the [MIT License](LICENSE).
+This project is open source
 
-## 🎮 Screenshots
-
-*Add screenshots of your game here when uploading to GitHub*
-
----
 
 **Enjoy the game and happy flying! ✈️**
 
