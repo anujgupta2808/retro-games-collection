@@ -178,17 +178,28 @@ window.addEventListener('keydown',e=>keys[e.key]=true);
 window.addEventListener('keyup',e=>keys[e.key]=false);
 
 // ===== MOUSE =====
-canvas.addEventListener('mousemove',e=>{mouseX=e.clientX;mouseY=e.clientY;});
+canvas.addEventListener('mousemove',e=>{
+ const rect = canvas.getBoundingClientRect();
+ mouseX = e.clientX - rect.left;
+ mouseY = e.clientY - rect.top;
+});
 canvas.addEventListener('mousedown',()=>mouseDown=true);
 canvas.addEventListener('mouseup',()=>mouseDown=false);
 
 // ===== TOUCH CONTROLS =====
 canvas.addEventListener("touchstart",e=>{
+ e.preventDefault();
  for(let t of e.changedTouches){
-   if(t.clientX > canvas.width/2 && moveTouch===null){
+   const rect = canvas.getBoundingClientRect();
+   const touchX = t.clientX - rect.left;
+   const touchY = t.clientY - rect.top;
+   
+   if(touchX > canvas.width/2 && moveTouch===null){
      moveTouch=t.identifier;
+     mouseX = touchX;
+     mouseY = touchY;
    }
-   if(t.clientX <= canvas.width/2 && fireTouch===null){
+   if(touchX <= canvas.width/2 && fireTouch===null){
      fireTouch=t.identifier;
      shoot();
    }
@@ -196,10 +207,17 @@ canvas.addEventListener("touchstart",e=>{
 });
 
 canvas.addEventListener("touchmove",e=>{
+ e.preventDefault();
  for(let t of e.touches){
+   const rect = canvas.getBoundingClientRect();
+   const touchX = t.clientX - rect.left;
+   const touchY = t.clientY - rect.top;
+   
    if(t.identifier===moveTouch){
-     let dx=t.clientX-player.x;
-     let dy=t.clientY-player.y;
+     mouseX = touchX;
+     mouseY = touchY;
+     let dx=touchX-player.x;
+     let dy=touchY-player.y;
      let ang=Math.atan2(dy,dx);
      player.angle=ang;
      player.vx+=Math.cos(ang)*0.5;
@@ -212,6 +230,7 @@ canvas.addEventListener("touchmove",e=>{
 });
 
 canvas.addEventListener("touchend",e=>{
+ e.preventDefault();
  for(let t of e.changedTouches){
    if(t.identifier===moveTouch) moveTouch=null;
    if(t.identifier===fireTouch) fireTouch=null;
@@ -288,6 +307,7 @@ function update(){
  if(mouseDown){
    let dx=mouseX-player.x,dy=mouseY-player.y;
    let ang=Math.atan2(dy,dx);
+   player.angle=ang;
    player.vx+=Math.cos(ang)*0.5;
    player.vy+=Math.sin(ang)*0.5;
    if(Math.random()<0.3) shoot();
